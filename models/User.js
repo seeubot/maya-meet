@@ -46,6 +46,10 @@ const userSchema = new mongoose.Schema({
     max:     50000  // meters
   },
 
+  // Set to true when the user completes onboarding for the first time.
+  // Used by the OAuth callback to decide whether to send them to /app or /onboarding.
+  onboardingComplete: { type: Boolean, default: false },
+
   createdAt: { type: Date, default: Date.now }
 });
 
