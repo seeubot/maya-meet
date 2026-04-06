@@ -35,7 +35,13 @@ app.use(helmet({
   }
 }));
 app.use(cors());
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 300 }));
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false }
+}));
 
 // ─── Body Parsing ─────────────────────────────────────────────────────────────
 app.use(express.json());
