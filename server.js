@@ -14,6 +14,7 @@ const path = require('path');
 const User = require('./models/User');
 
 const app = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: process.env.APP_URL || '*', methods: ['GET', 'POST'] }
