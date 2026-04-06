@@ -29,7 +29,7 @@ router.put('/profile', requireAuth, async (req, res) => {
     const { bio, interests, lookingFor, searchRadius, isVisible } = req.body;
     const user = await User.findByIdAndUpdate(
       req.user._id,
-      { bio, interests, lookingFor, searchRadius, isVisible },
+      { bio, interests, lookingFor, searchRadius, isVisible, onboardingComplete: true },
       { new: true, runValidators: true }
     ).select('-__v');
     res.json({ success: true, user });
