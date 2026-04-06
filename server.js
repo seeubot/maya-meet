@@ -217,6 +217,9 @@ app.get('/app', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'app.html'));
 });
 
+// ─── Favicon – return 204 silently to stop 1s+ 404 noise on every page load ───
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
   log.warn(`404 — ${req.method} ${req.originalUrl} ip=${req.ip}`);
@@ -317,12 +320,16 @@ process.on('uncaughtException', (err) => {
 
 process.on('SIGTERM', () => {
   log.info('SIGTERM received — shutting down gracefully…');
-  server.close(() => {
+  server.close(async () => {
     log.info('HTTP server closed');
-    mongoose.connection.close(false, () => {
+    try {
+      await mongoose.connection.close(); // Mongoose 7+: returns Promise, no callback
       log.info('MongoDB connection closed');
+    } catch (err) {
+      log.error('Error closing MongoDB connection:', err.message);
+    } finally {
       process.exit(0);
-    });
+    }
   });
 });
 
