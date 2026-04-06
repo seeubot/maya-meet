@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NearMe – Set Up Your Profile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0d0d0d;
+    --paper: #f5f0e8;
+    --accent: #ff4d1c;
+    --accent2: #1c6fff;
+    --soft: rgba(245,240,232,0.06);
+    --border: rgba(245,240,232,0.12);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--ink);
+    color: var(--paper);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+  }
+
+  .grid-bg {
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(245,240,232,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(245,240,232,0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+    pointer-events: none;
+  }
+
+  .container {
+    position: relative;
+    z-index: 10;
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 60px 24px 80px;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.3rem;
+    margin-bottom: 48px;
+    display: block;
+  }
+  .logo span { color: var(--accent); }
+
+  .step-indicator {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 40px;
+  }
+  .step-dot {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    flex: 1;
+    transition: background 0.4s ease;
+  }
+  .step-dot.active { background: var(--accent); }
+  .step-dot.done { background: rgba(245,240,232,0.3); }
+
+  .step { display: none; animation: fadeIn 0.4s ease; }
+  .step.active { display: block; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(1.8rem, 5vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -1px;
+    margin-bottom: 10px;
+    line-height: 1.1;
+  }
+  .step-sub {
+    color: rgba(245,240,232,0.5);
+    font-size: 0.95rem;
+    margin-bottom: 36px;
+    line-height: 1.6;
+  }
+
+  .form-group { margin-bottom: 24px; }
+  label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(245,240,232,0.5);
+    margin-bottom: 10px;
+  }
+
+  input[type="text"], textarea, select {
+    width: 100%;
+    background: var(--soft);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    color: var(--paper);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s ease;
+  }
+  input[type="text"]:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+  }
+  select option { background: #1a1a1a; }
+  textarea { resize: vertical; min-height: 100px; }
+
+  /* Interest tags */
+  .interests-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .interest-tag {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,77,28,0.15);
+    border: 1px solid rgba(255,77,28,0.4);
+    color: var(--accent);
+    border-radius: 100px;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .interest-tag .remove { opacity: 0.7; }
+  .interest-tag:hover .remove { opacity: 1; }
+
+  .interest-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .preset-chip {
+    background: var(--soft);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 6px 14px;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .preset-chip:hover, .preset-chip.selected {
+    background: rgba(255,77,28,0.15);
+    border-color: rgba(255,77,28,0.5);
+    color: var(--accent);
+  }
+
+  .add-interest-row {
+    display: flex;
+    gap: 10px;
+  }
+  .add-interest-row input { flex: 1; }
+  .btn-sm {
+    background: var(--soft);
+    border: 1px solid var(--border);
+    color: var(--paper);
+    padding: 14px 18px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+  }
+  .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Looking For grid */
+  .looking-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+  }
+  .looking-option {
+    background: var(--soft);
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }
+  .looking-option.selected {
+    background: rgba(255,77,28,0.12);
+    border-color: var(--accent);
+  }
+  .looking-option .opt-emoji { font-size: 1.8rem; display: block; margin-bottom: 8px; }
+  .looking-option .opt-label { font-size: 0.85rem; font-weight: 500; }
+
+  /* Radius slider */
+  .radius-display {
+    font-family: 'Syne', sans-serif;
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    outline: none;
+    margin: 16px 0;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(255,77,28,0.5);
+  }
+  .radius-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: rgba(245,240,232,0.4);
+  }
+
+  /* Avatar display */
+  .profile-preview {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--soft);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 32px;
+  }
+  .avatar-img {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--accent);
+  }
+  .profile-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.1rem; }
+  .profile-email { font-size: 0.82rem; color: rgba(245,240,232,0.45); }
+
+  /* Buttons */
+  .btn-next {
+    width: 100%;
+    padding: 16px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 100px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: 12px;
+    transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .btn-next:hover { transform: scale(1.02) translateY(-2px); box-shadow: 0 12px 40px rgba(255,77,28,0.35); }
+  .btn-next:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .btn-back {
+    width: 100%;
+    padding: 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: rgba(245,240,232,0.5);
+    border-radius: 100px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    margin-top: 10px;
+    transition: all 0.2s ease;
+  }
+  .btn-back:hover { border-color: var(--paper); color: var(--paper); }
+
+  .error-msg {
+    background: rgba(255,77,28,0.12);
+    border: 1px solid rgba(255,77,28,0.3);
+    color: var(--accent);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 0.85rem;
+    margin-bottom: 16px;
+    display: none;
+  }
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+
+<div class="container">
+  <span class="logo">Near<span>Me</span></span>
+
+  <div class="step-indicator">
+    <div class="step-dot active" id="dot-0"></div>
+    <div class="step-dot" id="dot-1"></div>
+    <div class="step-dot" id="dot-2"></div>
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <!-- Step 0: Welcome -->
+  <div class="step active" id="step-0">
+    <h2>Welcome to NearMe 👋</h2>
+    <p class="step-sub">Let's set up your profile so others can discover you. Takes less than 2 minutes.</p>
+    <div class="profile-preview">
+      <img id="userAvatar" src="" alt="avatar" class="avatar-img" onerror="this.src='data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 40 40\'><rect width=\'40\' height=\'40\' fill=\'%23333\'/><text x=\'50%25\' y=\'50%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' font-size=\'18\' fill=\'white\'>?</text></svg>'">
+      <div>
+        <div class="profile-name" id="userName">Loading...</div>
+        <div class="profile-email" id="userEmail"></div>
+      </div>
+    </div>
+    <button class="btn-next" onclick="nextStep()">Get Started →</button>
+  </div>
+
+  <!-- Step 1: Bio & Interests -->
+  <div class="step" id="step-1">
+    <h2>Tell us about you</h2>
+    <p class="step-sub">Add a short bio and your interests so people know what you're about.</p>
+
+    <div class="form-group">
+      <label>Short Bio</label>
+      <textarea id="bio" placeholder="I love hiking, coffee, and building things..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Interests</label>
+      <div class="interests-wrapper" id="selectedInterests"></div>
+      <div class="interest-presets" id="presetChips"></div>
+      <div class="add-interest-row">
+        <input type="text" id="customInterest" placeholder="Add custom interest..." maxlength="30">
+        <button class="btn-sm" onclick="addCustomInterest()">+ Add</button>
+      </div>
+    </div>
+
+    <button class="btn-next" onclick="nextStep()">Continue →</button>
+    <button class="btn-back" onclick="prevStep()">← Back</button>
+  </div>
+
+  <!-- Step 2: Looking For & Radius -->
+  <div class="step" id="step-2">
+    <h2>What are you looking for?</h2>
+    <p class="step-sub">Choose your connection goal and how far you want to search.</p>
+
+    <div class="form-group">
+      <label>Connection Type</label>
+      <div class="looking-grid" id="lookingGrid">
+        <div class="looking-option selected" data-value="all" onclick="selectLooking(this)">
+          <span class="opt-emoji">🌍</span>
+          <span class="opt-label">All</span>
+        </div>
+        <div class="looking-option" data-value="friendship" onclick="selectLooking(this)">
+          <span class="opt-emoji">👥</span>
+          <span class="opt-label">Friendship</span>
+        </div>
+        <div class="looking-option" data-value="networking" onclick="selectLooking(this)">
+          <span class="opt-emoji">💼</span>
+          <span class="opt-label">Networking</span>
+        </div>
+        <div class="looking-option" data-value="collaboration" onclick="selectLooking(this)">
+          <span class="opt-emoji">🚀</span>
+          <span class="opt-label">Collab</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Search Radius</label>
+      <div class="radius-display" id="radiusDisplay">5 km</div>
+      <input type="range" id="radiusSlider" min="500" max="50000" step="500" value="5000" oninput="updateRadius(this.value)">
+      <div class="radius-labels"><span>500m</span><span>50 km</span></div>
+    </div>
+
+    <button class="btn-next" onclick="saveProfile()" id="saveBtn">Save & Go to Map 🗺️</button>
+    <button class="btn-back" onclick="prevStep()">← Back</button>
+  </div>
+</div>
+
+<script>
+  let currentStep = 0;
+  let selectedInterests = [];
+  let lookingFor = 'all';
+
+  const presets = ['☕ Coffee','📚 Books','🎵 Music','🎮 Gaming','🏃 Fitness','✈️ Travel','🍕 Foodie','🎨 Art','💻 Tech','📸 Photography','🌿 Nature','🎬 Movies','🧘 Yoga','🎸 Music-Maker','🌙 Nightlife'];
+
+  async function loadUser() {
+    const res = await fetch('/auth/me');
+    if (!res.ok) { window.location.href = '/'; return; }
+    const user = await res.json();
+    document.getElementById('userAvatar').src = user.avatar;
+    document.getElementById('userName').textContent = user.name;
+    document.getElementById('userEmail').textContent = user.email;
+    // pre-fill if editing
+    if (user.bio) document.getElementById('bio').value = user.bio;
+    if (user.interests) { selectedInterests = [...user.interests]; renderTags(); }
+    if (user.lookingFor) { lookingFor = user.lookingFor; document.querySelectorAll('.looking-option').forEach(o => o.classList.toggle('selected', o.dataset.value === lookingFor)); }
+    if (user.searchRadius) { document.getElementById('radiusSlider').value = user.searchRadius; updateRadius(user.searchRadius); }
+  }
+
+  function renderPresets() {
+    const container = document.getElementById('presetChips');
+    container.innerHTML = presets.map(p => `<div class="preset-chip ${selectedInterests.includes(p)?'selected':''}" onclick="togglePreset('${p}',this)">${p}</div>`).join('');
+  }
+
+  function renderTags() {
+    const container = document.getElementById('selectedInterests');
+    container.innerHTML = selectedInterests.map(i => `<div class="interest-tag">${i} <span class="remove" onclick="removeInterest('${i}')">✕</span></div>`).join('');
+  }
+
+  function togglePreset(interest, el) {
+    const idx = selectedInterests.indexOf(interest);
+    if (idx > -1) { selectedInterests.splice(idx, 1); el.classList.remove('selected'); }
+    else { selectedInterests.push(interest); el.classList.add('selected'); }
+    renderTags();
+  }
+
+  function removeInterest(interest) {
+    selectedInterests = selectedInterests.filter(i => i !== interest);
+    renderTags();
+    document.querySelectorAll('.preset-chip').forEach(chip => {
+      if (chip.textContent.trim() === interest) chip.classList.remove('selected');
+    });
+  }
+
+  function addCustomInterest() {
+    const input = document.getElementById('customInterest');
+    const val = input.value.trim();
+    if (val && !selectedInterests.includes(val)) {
+      selectedInterests.push(val);
+      renderTags();
+      input.value = '';
+    }
+  }
+
+  document.getElementById('customInterest')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') addCustomInterest();
+  });
+
+  function selectLooking(el) {
+    document.querySelectorAll('.looking-option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    lookingFor = el.dataset.value;
+  }
+
+  function updateRadius(val) {
+    const km = (val / 1000).toFixed(val < 1000 ? 1 : 0);
+    document.getElementById('radiusDisplay').textContent = val < 1000 ? `${val}m` : `${km} km`;
+  }
+
+  function nextStep() {
+    if (currentStep < 2) {
+      document.getElementById(`step-${currentStep}`).classList.remove('active');
+      document.getElementById(`dot-${currentStep}`).classList.remove('active');
+      document.getElementById(`dot-${currentStep}`).classList.add('done');
+      currentStep++;
+      document.getElementById(`step-${currentStep}`).classList.add('active');
+      document.getElementById(`dot-${currentStep}`).classList.add('active');
+      if (currentStep === 1) renderPresets();
+    }
+  }
+
+  function prevStep() {
+    if (currentStep > 0) {
+      document.getElementById(`step-${currentStep}`).classList.remove('active');
+      document.getElementById(`dot-${currentStep}`).classList.remove('active');
+      currentStep--;
+      document.getElementById(`step-${currentStep}`).classList.add('active');
+      document.getElementById(`dot-${currentStep}`).classList.remove('done');
+      document.getElementById(`dot-${currentStep}`).classList.add('active');
+    }
+  }
+
+  async function saveProfile() {
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    try {
+      const res = await fetch('/api/users/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bio: document.getElementById('bio').value.trim(),
+          interests: selectedInterests,
+          lookingFor,
+          searchRadius: parseInt(document.getElementById('radiusSlider').value),
+          isVisible: true
+        })
+      });
+      if (!res.ok) throw new Error('Failed');
+      window.location.href = '/app';
+    } catch (err) {
+      const errEl = document.getElementById('errorMsg');
+      errEl.textContent = 'Failed to save profile. Please try again.';
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Save & Go to Map 🗺️';
+    }
+  }
+
+  loadUser();
+</script>
+</body>
+</html>

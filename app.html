@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>NearMe – Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root {
+    --ink: #0d0d0d;
+    --paper: #f5f0e8;
+    --accent: #ff4d1c;
+    --accent2: #1c6fff;
+    --panel: rgba(13,13,13,0.92);
+    --border: rgba(245,240,232,0.1);
+    --soft: rgba(245,240,232,0.06);
+    --online: #22c55e;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; width: 100%; overflow: hidden; }
+  body { background: var(--ink); color: var(--paper); font-family: 'DM Sans', sans-serif; }
+
+  /* ── MAP ── */
+  #map {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    filter: saturate(0.6) brightness(0.75);
+  }
+
+  /* ── TOP NAV ── */
+  .top-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    backdrop-filter: blur(24px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+  .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.2rem; }
+  .logo span { color: var(--accent); }
+
+  .top-bar-right { display: flex; align-items: center; gap: 12px; }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--soft);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 5px 12px;
+    font-size: 0.78rem;
+    font-weight: 500;
+  }
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--online);
+    animation: blink 2s ease infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .top-btn {
+    background: var(--soft);
+    border: 1px solid var(--border);
+    color: var(--paper);
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s ease;
+  }
+  .top-btn:hover { border-color: var(--accent); }
+
+  .avatar-btn {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid var(--border);
+    transition: border-color 0.2s ease;
+  }
+  .avatar-btn:hover { border-color: var(--accent); }
+  .avatar-btn img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* ── NEARBY PANEL ── */
+  .nearby-panel {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 100;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    backdrop-filter: blur(24px);
+    border-radius: 20px 20px 0 0;
+    transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    max-height: 70vh;
+  }
+  .nearby-panel.collapsed { transform: translateY(calc(100% - 64px)); }
+
+  .panel-handle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .handle-bar {
+    width: 36px; height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    position: absolute;
+    left: 50%; transform: translateX(-50%);
+    top: 8px;
+  }
+  .panel-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; }
+  .people-count {
+    background: var(--accent);
+    color: white;
+    border-radius: 100px;
+    padding: 2px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .nearby-list {
+    overflow-y: auto;
+    max-height: calc(70vh - 64px);
+    padding: 0 16px 20px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .person-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 16px;
+    background: var(--soft);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .person-card:hover { border-color: rgba(255,77,28,0.35); background: rgba(255,77,28,0.05); }
+
+  .person-avatar {
+    position: relative;
+    flex-shrink: 0;
+    width: 48px; height: 48px;
+  }
+  .person-avatar img {
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border);
+  }
+  .online-badge {
+    position: absolute;
+    bottom: 1px; right: 1px;
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: var(--online);
+    border: 2px solid var(--ink);
+  }
+  .offline-badge { background: #666; }
+
+  .person-info { flex: 1; min-width: 0; }
+  .person-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.95rem; margin-bottom: 3px; }
+  .person-bio { font-size: 0.8rem; color: rgba(245,240,232,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .person-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .person-tag {
+    font-size: 0.72rem;
+    background: var(--soft);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 2px 8px;
+    color: rgba(245,240,232,0.6);
+  }
+  .person-dist {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    color: var(--accent);
+    font-weight: 600;
+    padding-top: 4px;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: rgba(245,240,232,0.4);
+  }
+  .empty-state .emoji { font-size: 3rem; margin-bottom: 12px; }
+  .empty-state p { font-size: 0.9rem; line-height: 1.6; }
+
+  /* ── PROFILE SIDEBAR ── */
+  .sidebar {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: min(380px, 100vw);
+    z-index: 200;
+    background: #0d0d0d;
+    border-left: 1px solid var(--border);
+    transform: translateX(100%);
+    transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    overflow-y: auto;
+  }
+  .sidebar.open { transform: translateX(0); }
+
+  .sidebar-header {
+    padding: 60px 24px 24px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .sidebar-close {
+    position: absolute;
+    top: 16px; left: 16px;
+    background: var(--soft);
+    border: 1px solid var(--border);
+    color: var(--paper);
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .sidebar-avatar {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--accent);
+    margin-bottom: 14px;
+  }
+  .sidebar-name { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem; }
+  .sidebar-looking { font-size: 0.8rem; color: rgba(245,240,232,0.4); margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+
+  .sidebar-body { padding: 24px; }
+  .sidebar-section { margin-bottom: 28px; }
+  .sidebar-label {
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: rgba(245,240,232,0.35);
+    margin-bottom: 10px;
+  }
+  .sidebar-bio { font-size: 0.95rem; line-height: 1.7; color: rgba(245,240,232,0.75); }
+  .tag-cloud { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sidebar-tag {
+    background: rgba(255,77,28,0.1);
+    border: 1px solid rgba(255,77,28,0.3);
+    color: var(--accent);
+    border-radius: 100px;
+    padding: 5px 13px;
+    font-size: 0.82rem;
+  }
+
+  /* Edit profile in sidebar */
+  .sidebar-edit input,
+  .sidebar-edit textarea,
+  .sidebar-edit select {
+    width: 100%;
+    background: var(--soft);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 14px;
+    color: var(--paper);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    outline: none;
+    margin-bottom: 12px;
+    transition: border-color 0.2s ease;
+  }
+  .sidebar-edit input:focus,
+  .sidebar-edit textarea:focus,
+  .sidebar-edit select:focus { border-color: var(--accent); }
+  .sidebar-edit select option { background: #1a1a1a; }
+
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--soft); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; margin-bottom: 12px;
+  }
+  .toggle-label { font-size: 0.9rem; }
+  .toggle {
+    width: 44px; height: 24px;
+    background: var(--border);
+    border-radius: 100px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s ease;
+    border: none;
+  }
+  .toggle.on { background: var(--online); }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: white;
+    top: 3px; left: 3px;
+    transition: transform 0.3s ease;
+  }
+  .toggle.on::after { transform: translateX(20px); }
+
+  .btn-save-profile {
+    width: 100%;
+    padding: 14px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 100px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn-save-profile:hover { opacity: 0.9; }
+
+  .btn-logout {
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: rgba(245,240,232,0.5);
+    border-radius: 100px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: all 0.2s ease;
+    text-align: center;
+    text-decoration: none;
+    display: block;
+  }
+  .btn-logout:hover { border-color: #ef4444; color: #ef4444; }
+
+  /* ── PERSON DETAIL OVERLAY ── */
+  .person-detail {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 300;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    backdrop-filter: blur(8px);
+  }
+  .person-detail.open { opacity: 1; pointer-events: all; }
+  .person-detail-card {
+    background: #111;
+    border: 1px solid var(--border);
+    border-radius: 24px 24px 0 0;
+    padding: 32px 24px 40px;
+    width: 100%;
+    max-width: 480px;
+    transform: translateY(40px);
+    transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .person-detail.open .person-detail-card { transform: translateY(0); }
+  .detail-avatar {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--accent);
+    margin-bottom: 14px;
+  }
+  .detail-name { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.5rem; margin-bottom: 4px; }
+  .detail-close {
+    position: absolute;
+    top: 16px; right: 16px;
+    background: var(--soft);
+    border: 1px solid var(--border);
+    color: var(--paper);
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .person-detail-card { position: relative; }
+
+  /* ── MAP CONTROLS ── */
+  .map-controls {
+    position: fixed;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .map-ctrl-btn {
+    width: 42px; height: 42px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--paper);
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(12px);
+  }
+  .map-ctrl-btn:hover { border-color: var(--accent); }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    top: 72px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    z-index: 400;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 10px 20px;
+    font-size: 0.85rem;
+    opacity: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── LOADER ── */
+  .loader {
+    position: fixed;
+    inset: 0;
+    background: var(--ink);
+    z-index: 500;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    transition: opacity 0.5s ease;
+  }
+  .loader.hidden { opacity: 0; pointer-events: none; }
+  .loader-logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 2rem; }
+  .loader-logo span { color: var(--accent); }
+  .loader-spinner {
+    width: 32px; height: 32px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loader-text { font-size: 0.85rem; color: rgba(245,240,232,0.4); }
+
+  /* Custom Leaflet marker */
+  .custom-marker {
+    position: relative;
+    width: 44px; height: 44px;
+  }
+  .custom-marker img {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 3px solid var(--accent);
+    object-fit: cover;
+    position: absolute;
+    top: 0; left: 2px;
+  }
+  .custom-marker.me img { border-color: var(--accent2); }
+  .custom-marker .marker-dot {
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 12px; height: 12px;
+    background: var(--online);
+    border-radius: 50%;
+    border: 2px solid var(--ink);
+  }
+
+  @media (max-width: 480px) {
+    .sidebar { width: 100vw; }
+    .map-controls { right: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loader -->
+<div class="loader" id="loader">
+  <div class="loader-logo">Near<span>Me</span></div>
+  <div class="loader-spinner"></div>
+  <div class="loader-text">Finding your location...</div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Top Bar -->
+<div class="top-bar">
+  <div class="logo">Near<span>Me</span></div>
+  <div class="top-bar-right">
+    <div class="status-pill">
+      <div class="status-dot"></div>
+      <span id="nearbyCount">0 nearby</span>
+    </div>
+    <button class="top-btn" onclick="centerOnMe()" title="My location">📍</button>
+    <div class="avatar-btn" onclick="openSidebar()">
+      <img id="myAvatar" src="" alt="me">
+    </div>
+  </div>
+</div>
+
+<!-- Map -->
+<div id="map"></div>
+
+<!-- Map Controls -->
+<div class="map-controls">
+  <button class="map-ctrl-btn" onclick="map.zoomIn()">+</button>
+  <button class="map-ctrl-btn" onclick="map.zoomOut()">−</button>
+</div>
+
+<!-- Nearby Panel -->
+<div class="nearby-panel collapsed" id="nearbyPanel">
+  <div class="panel-handle" onclick="togglePanel()">
+    <div class="handle-bar"></div>
+    <span class="panel-title">People Nearby</span>
+    <span class="people-count" id="panelCount">0</span>
+  </div>
+  <div class="nearby-list" id="nearbyList">
+    <div class="empty-state">
+      <div class="emoji">📡</div>
+      <p>Getting your location…</p>
+    </div>
+  </div>
+</div>
+
+<!-- Profile Sidebar -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <button class="sidebar-close" onclick="closeSidebar()">✕</button>
+    <img id="sidebarAvatar" src="" alt="me" class="sidebar-avatar">
+    <div class="sidebar-name" id="sidebarName"></div>
+    <div class="sidebar-looking" id="sidebarLooking"></div>
+  </div>
+  <div class="sidebar-body">
+    <div class="sidebar-section sidebar-edit">
+      <div class="sidebar-label">Edit Profile</div>
+      <textarea id="editBio" rows="3" placeholder="Your bio..."></textarea>
+      <input type="text" id="editInterests" placeholder="Interests (comma separated)">
+      <select id="editLookingFor">
+        <option value="all">🌍 All</option>
+        <option value="friendship">👥 Friendship</option>
+        <option value="networking">💼 Networking</option>
+        <option value="collaboration">🚀 Collaboration</option>
+      </select>
+
+      <div class="toggle-row">
+        <span class="toggle-label">Visible on map</span>
+        <button class="toggle on" id="visibleToggle" onclick="toggleVisibility()"></button>
+      </div>
+
+      <div class="sidebar-label" style="margin-top:4px">Search Radius: <span id="editRadiusVal">5 km</span></div>
+      <input type="range" min="500" max="50000" step="500" value="5000" id="editRadius"
+        oninput="const v=this.value; document.getElementById('editRadiusVal').textContent = v<1000?v+'m':(v/1000).toFixed(0)+' km'">
+
+      <button class="btn-save-profile" onclick="saveProfileEdits()">Save Changes</button>
+      <a href="/auth/logout" class="btn-logout">Sign out</a>
+    </div>
+  </div>
+</div>
+
+<!-- Person Detail -->
+<div class="person-detail" id="personDetail" onclick="closePersonDetail(event)">
+  <div class="person-detail-card">
+    <button class="detail-close" onclick="closePersonDetail()">✕</button>
+    <img id="detailAvatar" src="" alt="" class="detail-avatar">
+    <div class="detail-name" id="detailName"></div>
+    <div style="font-size:0.8rem;color:rgba(245,240,232,0.4);margin-bottom:14px;text-transform:uppercase;letter-spacing:1px" id="detailLooking"></div>
+    <div style="font-size:0.9rem;color:rgba(245,240,232,0.7);line-height:1.7;margin-bottom:16px" id="detailBio"></div>
+    <div class="tag-cloud" id="detailTags"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/socket.io/client-dist/socket.io.min.js"></script>
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let map, myMarker, circleLayer;
+  let myUser = null;
+  let myLat = null, myLng = null;
+  let nearbyUsers = [];
+  let markers = {}; // userId -> leaflet marker
+  let panelOpen = false;
+  let isVisible = true;
+  let socket;
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  async function init() {
+    try {
+      const res = await fetch('/auth/me');
+      if (!res.ok) { window.location.href = '/'; return; }
+      myUser = await res.json();
+
+      document.getElementById('myAvatar').src = myUser.avatar;
+      document.getElementById('sidebarAvatar').src = myUser.avatar;
+      document.getElementById('sidebarName').textContent = myUser.name;
+      document.getElementById('sidebarLooking').textContent = myUser.lookingFor?.toUpperCase() || '';
+      document.getElementById('editBio').value = myUser.bio || '';
+      document.getElementById('editInterests').value = (myUser.interests || []).join(', ');
+      document.getElementById('editLookingFor').value = myUser.lookingFor || 'all';
+      isVisible = myUser.isVisible !== false;
+      document.getElementById('visibleToggle').className = 'toggle ' + (isVisible ? 'on' : '');
+      if (myUser.searchRadius) {
+        const r = myUser.searchRadius;
+        document.getElementById('editRadius').value = r;
+        document.getElementById('editRadiusVal').textContent = r < 1000 ? r + 'm' : (r/1000).toFixed(0) + ' km';
+      }
+
+      initMap();
+      initSocket();
+      getLocation();
+    } catch (e) {
+      console.error(e);
+      window.location.href = '/';
+    }
+  }
+
+  // ── Map ────────────────────────────────────────────────────────────────────
+  function initMap() {
+    map = L.map('map', { zoomControl: false, attributionControl: false }).setView([20.5937, 78.9629], 5);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '©OpenStreetMap ©CartoDB',
+      maxZoom: 19
+    }).addTo(map);
+  }
+
+  function makeIcon(avatarUrl, isMe = false, isOnline = true) {
+    const color = isMe ? '#1c6fff' : '#ff4d1c';
+    const dotColor = isOnline ? '#22c55e' : '#666';
+    const initials = (myUser?.name || '?')[0].toUpperCase();
+    const html = `
+      <div style="position:relative;width:44px;height:44px">
+        <div style="width:40px;height:40px;border-radius:50%;border:3px solid ${color};overflow:hidden;position:absolute;top:0;left:2px;background:#333">
+          <img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'" alt="${initials}">
+        </div>
+        <div style="position:absolute;bottom:0;right:0;width:12px;height:12px;border-radius:50%;background:${dotColor};border:2px solid #0d0d0d"></div>
+      </div>`;
+    return L.divIcon({ html, className: '', iconSize: [44, 44], iconAnchor: [22, 22] });
+  }
+
+  function getLocation() {
+    if (!navigator.geolocation) {
+      showToast('Geolocation not supported');
+      hideLoader();
+      return;
+    }
+    navigator.geolocation.watchPosition(onPosition, onGeoError, {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 30000
+    });
+  }
+
+  async function onPosition(pos) {
+    myLat = pos.coords.latitude;
+    myLng = pos.coords.longitude;
+
+    // Place/update my marker
+    const latlng = [myLat, myLng];
+    if (!myMarker) {
+      myMarker = L.marker(latlng, { icon: makeIcon(myUser.avatar, true) })
+        .addTo(map)
+        .bindPopup(`<strong>${myUser.name}</strong><br>You`);
+      map.setView(latlng, 15);
+      drawRadius();
+    } else {
+      myMarker.setLatLng(latlng);
+      if (circleLayer) circleLayer.setLatLng(latlng);
+    }
+
+    hideLoader();
+
+    // Send location to server
+    await fetch('/api/users/location', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat: myLat, lng: myLng })
+    });
+
+    // Emit via socket
+    if (socket) socket.emit('user:location', { userId: myUser.id, lat: myLat, lng: myLng });
+
+    fetchNearby();
+  }
+
+  function onGeoError(err) {
+    showToast('Location error: ' + err.message);
+    hideLoader();
+  }
+
+  function drawRadius() {
+    if (circleLayer) map.removeLayer(circleLayer);
+    const radius = myUser.searchRadius || 5000;
+    circleLayer = L.circle([myLat, myLng], {
+      radius,
+      color: 'rgba(28,111,255,0.6)',
+      fillColor: 'rgba(28,111,255,0.05)',
+      weight: 1.5,
+      dashArray: '6 6'
+    }).addTo(map);
+  }
+
+  function centerOnMe() {
+    if (myLat) map.flyTo([myLat, myLng], 15, { animate: true, duration: 1 });
+  }
+
+  // ── Nearby Users ──────────────────────────────────────────────────────────
+  async function fetchNearby() {
+    if (!myLat) return;
+    try {
+      const res = await fetch('/api/users/nearby');
+      const data = await res.json();
+      nearbyUsers = data.users || [];
+      updateNearbyUI();
+      updateMarkers();
+    } catch (e) {
+      console.error('fetchNearby error', e);
+    }
+  }
+
+  function updateMarkers() {
+    const activeIds = new Set(nearbyUsers.map(u => u._id));
+
+    // Remove stale markers
+    for (const [uid, marker] of Object.entries(markers)) {
+      if (!activeIds.has(uid)) { map.removeLayer(marker); delete markers[uid]; }
+    }
+
+    // Add/update markers
+    nearbyUsers.forEach(u => {
+      const coords = u.location?.coordinates;
+      if (!coords || (coords[0] === 0 && coords[1] === 0)) return;
+      const latlng = [coords[1], coords[0]];
+      if (markers[u._id]) {
+        markers[u._id].setLatLng(latlng);
+        markers[u._id].setIcon(makeIcon(u.avatar, false, u.isOnline));
+      } else {
+        const marker = L.marker(latlng, { icon: makeIcon(u.avatar, false, u.isOnline) })
+          .addTo(map)
+          .on('click', () => openPersonDetail(u));
+        markers[u._id] = marker;
+      }
+    });
+  }
+
+  function updateNearbyUI() {
+    const count = nearbyUsers.length;
+    document.getElementById('nearbyCount').textContent = `${count} nearby`;
+    document.getElementById('panelCount').textContent = count;
+
+    const list = document.getElementById('nearbyList');
+    if (count === 0) {
+      list.innerHTML = `<div class="empty-state"><div class="emoji">🌍</div><p>No one nearby right now.<br>Try expanding your search radius.</p></div>`;
+      return;
+    }
+
+    list.innerHTML = nearbyUsers.map(u => {
+      const tags = (u.interests || []).slice(0, 3).map(t => `<span class="person-tag">${t}</span>`).join('');
+      const dist = getDistance(myLat, myLng, u.location?.coordinates?.[1], u.location?.coordinates?.[0]);
+      return `<div class="person-card" onclick='openPersonDetail(${JSON.stringify(u)})'>
+        <div class="person-avatar">
+          <img src="${u.avatar||''}" onerror="this.src='data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 40 40\'><rect width=\'40\' height=\'40\' fill=\'%23333\'/><text x=\'50%25\' y=\'50%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' font-size=\'18\' fill=\'white\'>${(u.name||'?')[0]}</text></svg>'" alt="">
+          <div class="online-badge ${u.isOnline ? '' : 'offline-badge'}"></div>
+        </div>
+        <div class="person-info">
+          <div class="person-name">${u.name}</div>
+          <div class="person-bio">${u.bio || 'No bio yet'}</div>
+          <div class="person-tags">${tags}</div>
+        </div>
+        <div class="person-dist">${dist}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function getDistance(lat1, lng1, lat2, lng2) {
+    if (!lat1 || !lat2) return '';
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+    const d = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return d < 1000 ? Math.round(d) + 'm' : (d/1000).toFixed(1) + 'km';
+  }
+
+  // ── Panel ──────────────────────────────────────────────────────────────────
+  function togglePanel() {
+    panelOpen = !panelOpen;
+    document.getElementById('nearbyPanel').classList.toggle('collapsed', !panelOpen);
+  }
+
+  // ── Sidebar ────────────────────────────────────────────────────────────────
+  function openSidebar() { document.getElementById('sidebar').classList.add('open'); }
+  function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); }
+
+  async function saveProfileEdits() {
+    const interests = document.getElementById('editInterests').value
+      .split(',').map(s => s.trim()).filter(Boolean);
+    const radius = parseInt(document.getElementById('editRadius').value);
+
+    await fetch('/api/users/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bio: document.getElementById('editBio').value,
+        interests,
+        lookingFor: document.getElementById('editLookingFor').value,
+        searchRadius: radius,
+        isVisible
+      })
+    });
+
+    myUser.searchRadius = radius;
+    if (circleLayer && myLat) drawRadius();
+    showToast('Profile saved ✓');
+    closeSidebar();
+    fetchNearby();
+  }
+
+  function toggleVisibility() {
+    isVisible = !isVisible;
+    const btn = document.getElementById('visibleToggle');
+    btn.className = 'toggle ' + (isVisible ? 'on' : '');
+    showToast(isVisible ? 'You are now visible 👁️' : 'You are now hidden 🙈');
+  }
+
+  // ── Person Detail ──────────────────────────────────────────────────────────
+  function openPersonDetail(user) {
+    if (typeof user === 'string') user = JSON.parse(user);
+    document.getElementById('detailAvatar').src = user.avatar || '';
+    document.getElementById('detailName').textContent = user.name;
+    document.getElementById('detailLooking').textContent = 'Looking for: ' + (user.lookingFor || 'all');
+    document.getElementById('detailBio').textContent = user.bio || 'No bio yet.';
+    document.getElementById('detailTags').innerHTML = (user.interests || [])
+      .map(t => `<span class="sidebar-tag">${t}</span>`).join('');
+    document.getElementById('personDetail').classList.add('open');
+  }
+  function closePersonDetail(e) {
+    if (!e || e.target === document.getElementById('personDetail') || e.target.classList.contains('detail-close')) {
+      document.getElementById('personDetail').classList.remove('open');
+    }
+  }
+
+  // ── Socket ──────────────────────────────────────────────────────────────────
+  function initSocket() {
+    socket = io();
+    socket.on('connect', () => {
+      if (myUser) socket.emit('user:join', myUser.id);
+    });
+    socket.on('user:online', ({ userId }) => {
+      const u = nearbyUsers.find(u => u._id === userId);
+      if (u) { u.isOnline = true; updateNearbyUI(); updateMarkers(); }
+    });
+    socket.on('user:offline', ({ userId }) => {
+      const u = nearbyUsers.find(u => u._id === userId);
+      if (u) { u.isOnline = false; updateNearbyUI(); updateMarkers(); }
+    });
+    socket.on('user:moved', ({ userId }) => {
+      // Refresh nearby list periodically
+      fetchNearby();
+    });
+  }
+
+  // ── Utilities ──────────────────────────────────────────────────────────────
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+  function hideLoader() {
+    setTimeout(() => document.getElementById('loader').classList.add('hidden'), 600);
+  }
+
+  // Refresh nearby every 30 seconds
+  setInterval(fetchNearby, 30000);
+
+  init();
+</script>
+</body>
+</html>
