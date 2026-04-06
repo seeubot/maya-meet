@@ -99,6 +99,18 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ─── Static files ─────────────────────────────────────────────────────────────
+// Guard protected HTML pages from being served directly by express.static.
+// Without this, /app.html and /onboarding.html bypass all route-level auth.
+const PROTECTED_PAGES = ['/app.html', '/onboarding.html'];
+app.use((req, res, next) => {
+  if (PROTECTED_PAGES.includes(req.path)) {
+    if (!req.isAuthenticated()) {
+      log.warn(`Direct static access blocked — ${req.path} ip=${req.ip}`);
+      return res.redirect('/');
+    }
+  }
+  next();
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── MongoDB ──────────────────────────────────────────────────────────────────
