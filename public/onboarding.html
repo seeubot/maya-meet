@@ -325,7 +325,7 @@
         <div class="profile-email" id="userEmail"></div>
       </div>
     </div>
-    <button class="btn-next" onclick="nextStep()">Get Started →</button>
+    <button class="btn-next" id="getStartedBtn" onclick="nextStep()">Get Started →</button>
   </div>
 
   <!-- Step 1: Bio & Interests -->
@@ -398,34 +398,70 @@
 
   const presets = ['☕ Coffee','📚 Books','🎵 Music','🎮 Gaming','🏃 Fitness','✈️ Travel','🍕 Foodie','🎨 Art','💻 Tech','📸 Photography','🌿 Nature','🎬 Movies','🧘 Yoga','🎸 Music-Maker','🌙 Nightlife'];
 
+  // ─── Load user – fully non-blocking ───────────────────────────────────────
   async function loadUser() {
-    const res = await fetch('/auth/me');
-    if (!res.ok) { window.location.href = '/'; return; }
-    const user = await res.json();
-    document.getElementById('userAvatar').src = user.avatar;
-    document.getElementById('userName').textContent = user.name;
-    document.getElementById('userEmail').textContent = user.email;
-    // pre-fill if editing
-    if (user.bio) document.getElementById('bio').value = user.bio;
-    if (user.interests) { selectedInterests = [...user.interests]; renderTags(); }
-    if (user.lookingFor) { lookingFor = user.lookingFor; document.querySelectorAll('.looking-option').forEach(o => o.classList.toggle('selected', o.dataset.value === lookingFor)); }
-    if (user.searchRadius) { document.getElementById('radiusSlider').value = user.searchRadius; updateRadius(user.searchRadius); }
+    try {
+      const res = await fetch('/auth/me', { credentials: 'include' });
+
+      // Not authenticated → redirect to home
+      if (res.status === 401 || res.status === 403) {
+        window.location.href = '/';
+        return;
+      }
+
+      if (!res.ok) {
+        // Server error: show warning but keep the page usable
+        console.warn('Could not load user profile, status:', res.status);
+        document.getElementById('userName').textContent = 'Anonymous';
+        return;
+      }
+
+      const user = await res.json();
+
+      // Populate profile card
+      if (user.avatar) document.getElementById('userAvatar').src = user.avatar;
+      document.getElementById('userName').textContent = user.name || 'Welcome!';
+      document.getElementById('userEmail').textContent  = user.email || '';
+
+      // Pre-fill existing data if editing
+      if (user.bio)          document.getElementById('bio').value = user.bio;
+      if (user.interests?.length) { selectedInterests = [...user.interests]; renderTags(); }
+      if (user.lookingFor) {
+        lookingFor = user.lookingFor;
+        document.querySelectorAll('.looking-option').forEach(o =>
+          o.classList.toggle('selected', o.dataset.value === lookingFor)
+        );
+      }
+      if (user.searchRadius) {
+        document.getElementById('radiusSlider').value = user.searchRadius;
+        updateRadius(user.searchRadius);
+      }
+
+    } catch (err) {
+      // Network failure: warn but don't block the user
+      console.error('loadUser error:', err);
+      document.getElementById('userName').textContent = 'Welcome!';
+    }
   }
 
+  // ─── Interests ────────────────────────────────────────────────────────────
   function renderPresets() {
     const container = document.getElementById('presetChips');
-    container.innerHTML = presets.map(p => `<div class="preset-chip ${selectedInterests.includes(p)?'selected':''}" onclick="togglePreset('${p}',this)">${p}</div>`).join('');
+    container.innerHTML = presets.map(p =>
+      `<div class="preset-chip ${selectedInterests.includes(p) ? 'selected' : ''}" onclick="togglePreset('${p}',this)">${p}</div>`
+    ).join('');
   }
 
   function renderTags() {
-    const container = document.getElementById('selectedInterests');
-    container.innerHTML = selectedInterests.map(i => `<div class="interest-tag">${i} <span class="remove" onclick="removeInterest('${i}')">✕</span></div>`).join('');
+    document.getElementById('selectedInterests').innerHTML = selectedInterests.map(i =>
+      `<div class="interest-tag">${i} <span class="remove" onclick="removeInterest('${i}')">✕</span></div>`
+    ).join('');
   }
 
   function togglePreset(interest, el) {
     const idx = selectedInterests.indexOf(interest);
     if (idx > -1) { selectedInterests.splice(idx, 1); el.classList.remove('selected'); }
-    else { selectedInterests.push(interest); el.classList.add('selected'); }
+    else           { selectedInterests.push(interest);  el.classList.add('selected'); }
     renderTags();
   }
 
@@ -439,7 +475,7 @@
 
   function addCustomInterest() {
     const input = document.getElementById('customInterest');
-    const val = input.value.trim();
+    const val   = input.value.trim();
     if (val && !selectedInterests.includes(val)) {
       selectedInterests.push(val);
       renderTags();
@@ -448,70 +484,83 @@
   }
 
   document.getElementById('customInterest')?.addEventListener('keydown', e => {
-    if (e.key === 'Enter') addCustomInterest();
+    if (e.key === 'Enter') { e.preventDefault(); addCustomInterest(); }
   });
 
+  // ─── Looking For ──────────────────────────────────────────────────────────
   function selectLooking(el) {
     document.querySelectorAll('.looking-option').forEach(o => o.classList.remove('selected'));
     el.classList.add('selected');
     lookingFor = el.dataset.value;
   }
 
+  // ─── Radius slider ────────────────────────────────────────────────────────
   function updateRadius(val) {
-    const km = (val / 1000).toFixed(val < 1000 ? 1 : 0);
-    document.getElementById('radiusDisplay').textContent = val < 1000 ? `${val}m` : `${km} km`;
+    const v = parseInt(val);
+    document.getElementById('radiusDisplay').textContent =
+      v < 1000 ? `${v}m` : `${(v / 1000).toFixed(v < 10000 ? 1 : 0)} km`;
   }
 
+  // ─── Step navigation ──────────────────────────────────────────────────────
   function nextStep() {
-    if (currentStep < 2) {
-      document.getElementById(`step-${currentStep}`).classList.remove('active');
-      document.getElementById(`dot-${currentStep}`).classList.remove('active');
-      document.getElementById(`dot-${currentStep}`).classList.add('done');
-      currentStep++;
-      document.getElementById(`step-${currentStep}`).classList.add('active');
-      document.getElementById(`dot-${currentStep}`).classList.add('active');
-      if (currentStep === 1) renderPresets();
-    }
+    if (currentStep >= 2) return;
+    document.getElementById(`step-${currentStep}`).classList.remove('active');
+    document.getElementById(`dot-${currentStep}`).classList.replace('active', 'done');
+    currentStep++;
+    document.getElementById(`step-${currentStep}`).classList.add('active');
+    document.getElementById(`dot-${currentStep}`).classList.add('active');
+    if (currentStep === 1) renderPresets();
   }
 
   function prevStep() {
-    if (currentStep > 0) {
-      document.getElementById(`step-${currentStep}`).classList.remove('active');
-      document.getElementById(`dot-${currentStep}`).classList.remove('active');
-      currentStep--;
-      document.getElementById(`step-${currentStep}`).classList.add('active');
-      document.getElementById(`dot-${currentStep}`).classList.remove('done');
-      document.getElementById(`dot-${currentStep}`).classList.add('active');
-    }
+    if (currentStep <= 0) return;
+    document.getElementById(`step-${currentStep}`).classList.remove('active');
+    document.getElementById(`dot-${currentStep}`).classList.remove('active');
+    currentStep--;
+    document.getElementById(`step-${currentStep}`).classList.add('active');
+    document.getElementById(`dot-${currentStep}`).classList.remove('done');
+    document.getElementById(`dot-${currentStep}`).classList.add('active');
   }
 
+  // ─── Save profile ─────────────────────────────────────────────────────────
   async function saveProfile() {
-    const btn = document.getElementById('saveBtn');
+    const btn    = document.getElementById('saveBtn');
+    const errEl  = document.getElementById('errorMsg');
+    errEl.style.display = 'none';
     btn.disabled = true;
     btn.textContent = 'Saving...';
+
     try {
       const res = await fetch('/api/users/profile', {
         method: 'PUT',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          bio: document.getElementById('bio').value.trim(),
-          interests: selectedInterests,
+          bio:          document.getElementById('bio').value.trim(),
+          interests:    selectedInterests,
           lookingFor,
           searchRadius: parseInt(document.getElementById('radiusSlider').value),
-          isVisible: true
+          isVisible:    true
         })
       });
-      if (!res.ok) throw new Error('Failed');
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || `Server error ${res.status}`);
+      }
+
       window.location.href = '/app';
+
     } catch (err) {
-      const errEl = document.getElementById('errorMsg');
-      errEl.textContent = 'Failed to save profile. Please try again.';
-      errEl.style.display = 'block';
-      btn.disabled = false;
-      btn.textContent = 'Save & Go to Map 🗺️';
+      errEl.textContent    = err.message || 'Failed to save profile. Please try again.';
+      errEl.style.display  = 'block';
+      btn.disabled         = false;
+      btn.textContent      = 'Save & Go to Map 🗺️';
     }
   }
 
+  // ─── Boot ─────────────────────────────────────────────────────────────────
+  // loadUser is fire-and-forget – the button always works regardless
   loadUser();
 </script>
 </body>
