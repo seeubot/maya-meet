@@ -92,8 +92,22 @@ body {
 .prog-line.done { background: var(--border-2); }
 
 /* ── Steps ───────────────────────────────────────────────────────────── */
-.step { display: none; }
-.step.active { display: block; animation: stepIn 0.45s cubic-bezier(0.22,1,0.36,1); }
+/* Use visibility+opacity instead of display:none so animations fire reliably */
+.step {
+  visibility: hidden;
+  opacity: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.step.active {
+  visibility: visible;
+  opacity: 1;
+  height: auto;
+  overflow: visible;
+  pointer-events: auto;
+  animation: stepIn 0.45s cubic-bezier(0.22,1,0.36,1) both;
+}
 @keyframes stepIn {
   from { opacity: 0; transform: translateY(20px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -395,15 +409,26 @@ input[type="range"]::-webkit-slider-thumb:hover {
     '🌿 Nature','🎬 Movies','🧘 Yoga','🎸 Music-Maker','🌙 Nightlife'
   ];
 
+  // ── Guards ─────────────────────────────────────────────────────────────────
+  let userLoaded    = false;   // has loadUser completed (success or failure)?
+  let pendingStep   = false;   // did user click before user loaded?
+
   async function loadUser() {
     try {
       const res = await fetch('/auth/me', { credentials: 'include' });
-      if (res.status === 401 || res.status === 403) { window.location.href = '/'; return; }
+
+      // Only redirect if clearly unauthenticated
+      if (res.status === 401 || res.status === 403) {
+        window.location.href = '/';
+        return;
+      }
+
       if (!res.ok) {
         console.warn('Could not load user, status:', res.status);
         document.getElementById('userName').textContent = 'Welcome!';
         return;
       }
+
       const user = await res.json();
       if (user.avatar) document.getElementById('userAvatar').src = user.avatar;
       document.getElementById('userName').textContent  = user.name  || 'Welcome!';
@@ -424,6 +449,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
     } catch (err) {
       console.error('loadUser error:', err);
       document.getElementById('userName').textContent = 'Welcome!';
+    } finally {
+      userLoaded = true;
+      // If user clicked Get Started while we were loading, advance now
+      if (pendingStep) { pendingStep = false; doNextStep(); }
     }
   }
 
@@ -481,16 +510,31 @@ input[type="range"]::-webkit-slider-thumb:hover {
   }
 
   function nextStep() {
-    if (currentStep >= 2) return;
-    const pn = document.getElementById(`pn-${currentStep}`);
-    pn.classList.remove('active'); pn.classList.add('done');
-    document.getElementById(`pl-${currentStep}`)?.classList.add('done');
-    document.getElementById(`step-${currentStep}`).classList.remove('active');
-    currentStep++;
-    document.getElementById(`step-${currentStep}`).classList.add('active');
-    document.getElementById(`pn-${currentStep}`).classList.add('active');
-    if (currentStep === 1) renderPresets();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // If user data hasn't loaded yet, queue the step and show loading state
+    if (!userLoaded) {
+      pendingStep = true;
+      const btn = document.querySelector('#step-0 .btn-primary');
+      if (btn) { btn.textContent = 'Loading…'; btn.disabled = true; }
+      return;
+    }
+    doNextStep();
+  }
+
+  function doNextStep() {
+    try {
+      if (currentStep >= 2) return;
+      const pn = document.getElementById(`pn-${currentStep}`);
+      pn.classList.remove('active'); pn.classList.add('done');
+      document.getElementById(`pl-${currentStep}`)?.classList.add('done');
+      document.getElementById(`step-${currentStep}`).classList.remove('active');
+      currentStep++;
+      document.getElementById(`step-${currentStep}`).classList.add('active');
+      document.getElementById(`pn-${currentStep}`).classList.add('active');
+      if (currentStep === 1) renderPresets();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      console.error('nextStep error:', err);
+    }
   }
 
   function prevStep() {
