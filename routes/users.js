@@ -57,12 +57,16 @@ router.patch('/me', async (req, res) => {
     updates.interests = updates.interests.map(i => String(i).trim()).filter(Boolean);
   }
 
-  // Mark profile complete if name and bio are present
-  if (updates.name || updates.bio) {
+  // Always recompute profileComplete against the merged final state
+  try {
     const existing = await User.findById(req.user._id).lean();
-    const mergedName = updates.name ?? existing?.name;
-    const mergedBio  = updates.bio  ?? existing?.bio;
-    if (mergedName && mergedBio) updates.profileComplete = true;
+    if (!existing) return res.status(404).json({ error: 'User not found' });
+
+    const mergedName = (updates.name ?? existing.name ?? '').trim();
+    const mergedBio  = (updates.bio  ?? existing.bio  ?? '').trim();
+    updates.profileComplete = !!(mergedName && mergedBio);
+  } catch (err) {
+    return res.status(500).json({ error: 'Server error' });
   }
 
   try {
