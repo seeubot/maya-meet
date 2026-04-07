@@ -2,343 +2,1175 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<title>NearMe — Immersive Map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>NearMe — map</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Syne+Mono&family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
 <style>
-  :root {
-    --primary: #007AFF; /* Apple-style Blue */
-    --accent: #34C759; /* Success Green */
-    --bg-glass: rgba(255, 255, 255, 0.85);
-    --bg-dark-glass: rgba(28, 28, 30, 0.85);
-    --border-glass: rgba(255, 255, 255, 0.3);
-    --shadow-soft: 0 8px 32px rgba(0,0,0,0.12);
-    --text-main: #1C1C1E;
-    --text-muted: #8E8E93;
-    --safe-top: env(safe-area-inset-top);
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0a0b0d;
+  --bg2:       #111318;
+  --bg3:       #181b22;
+  --surface:   #1e2230;
+  --surface2:  #252a3a;
+  --border:    rgba(255,255,255,0.07);
+  --border2:   rgba(255,255,255,0.12);
+
+  --text:      #e8eaf0;
+  --text-soft: #8a8fa8;
+  --text-faint:#4a4f66;
+
+  --green:     #39e08a;
+  --green-dim: rgba(57,224,138,0.15);
+  --green-glow:rgba(57,224,138,0.08);
+  --blue:      #5b8dee;
+  --blue-dim:  rgba(91,141,238,0.15);
+
+  --danger:    #ff4c4c;
+  --panel-w:   360px;
+  --sheet-h:   56vh;
+  --nav-h:     60px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left, 0px);
+  --safe-right:  env(safe-area-inset-right, 0px);
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Manrope', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Layout ── */
+.app { display: flex; flex-direction: column; height: 100%; }
+
+/* ── Nav ── */
+nav {
+  height: var(--nav-h);
+  padding: 0 1.25rem;
+  padding-left: calc(1.25rem + var(--safe-left));
+  padding-right: calc(1.25rem + var(--safe-right));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(10,11,13,0.85);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  z-index: 500;
+  position: relative;
+}
+
+.logo {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.logo-dot {
+  width: 8px; height: 8px;
+  background: var(--green);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--green);
+  animation: pulse-dot 2.4s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.5; transform: scale(0.7); }
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border: 1px solid var(--border2);
+  border-radius: 100px;
+  background: var(--surface);
+  font-family: 'Manrope', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-soft);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.nav-pill:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); }
+.nav-pill svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; flex-shrink:0; }
+
+.nav-avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--green) 0%, #1ab56a 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--bg);
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.2s;
+  overflow: hidden;
+  position: relative;
+}
+.nav-avatar::after {
+  content: '';
+  position: absolute; inset: -3px;
+  border-radius: 50%;
+  border: 2px solid var(--green);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.nav-avatar:hover::after { opacity: 0.5; }
+.nav-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ── Shell ── */
+.app-shell {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Map ── */
+.map-wrap {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+#map { width: 100%; height: 100%; }
+
+/* ── Leaflet overrides — hide all chrome ── */
+.leaflet-control-attribution { display: none !important; }
+.leaflet-control-zoom { display: none !important; }
+.leaflet-control-container .leaflet-top,
+.leaflet-control-container .leaflet-bottom { display: none !important; }
+.leaflet-container { font-family: 'Manrope', sans-serif; }
+.leaflet-container a.leaflet-popup-close-button { color: var(--text-soft) !important; }
+
+/* Popup */
+.leaflet-popup-content-wrapper {
+  background: var(--bg2) !important;
+  border: 1px solid var(--border2) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6) !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+.leaflet-popup-content {
+  margin: 0 !important;
+  min-width: 180px;
+}
+.leaflet-popup-tip-container { display: none !important; }
+
+/* ── Map Controls ── */
+.map-controls {
+  position: absolute;
+  bottom: 1.5rem; right: 1.25rem;
+  z-index: 450;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.map-ctrl-group {
+  background: rgba(17,19,24,0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.map-ctrl-btn {
+  width: 44px; height: 44px;
+  background: transparent;
+  border: none;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+  color: var(--text-soft);
+}
+.map-ctrl-btn:hover { background: var(--surface2); color: var(--text); }
+.map-ctrl-btn + .map-ctrl-btn { border-top: 1px solid var(--border); }
+.map-ctrl-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+.map-ctrl-locate {
+  width: 44px; height: 44px;
+  background: var(--green);
+  border: none;
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 0 20px rgba(57,224,138,0.3);
+  transition: all 0.2s;
+}
+.map-ctrl-locate:hover { box-shadow: 0 0 30px rgba(57,224,138,0.5); transform: scale(1.05); }
+.map-ctrl-locate svg { width: 18px; height: 18px; stroke: var(--bg); fill: none; stroke-width: 2.2; }
+
+/* Custom pin */
+.lf-pin { display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+.lf-bubble {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(255,255,255,0.9);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: white;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  overflow: hidden;
+  transition: transform 0.15s;
+}
+.lf-bubble:hover { transform: scale(1.1); }
+.lf-bubble img { width: 100%; height: 100%; object-fit: cover; }
+.lf-me { border-color: var(--green); box-shadow: 0 0 0 4px var(--green-glow), 0 4px 16px rgba(0,0,0,0.5); }
+.lf-stem { width: 2px; height: 8px; background: rgba(255,255,255,0.4); }
+.lf-dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,0.25); }
+
+/* Popup content */
+.popup-inner { padding: 12px 14px 14px; }
+.popup-name { font-family: 'Syne', sans-serif; font-weight: 600; font-size: 0.9rem; color: var(--text); }
+.popup-bio { font-size: 0.75rem; color: var(--text-soft); margin-top: 3px; line-height: 1.4; }
+.popup-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.popup-tag { font-size: 0.65rem; font-weight: 500; padding: 2px 8px; background: var(--surface2); color: var(--text-soft); border-radius: 100px; }
+.popup-tag.shared { background: var(--green-dim); color: var(--green); }
+
+/* ── Location Banner ── */
+.loc-banner {
+  position: absolute;
+  bottom: 1.5rem; left: 50%;
+  transform: translateX(-50%);
+  z-index: 450;
+  background: rgba(17,19,24,0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border2);
+  border-radius: 16px;
+  padding: 0.875rem 1.25rem;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+  color: var(--text-soft);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  white-space: nowrap;
+}
+.loc-banner svg { color: var(--text-faint); flex-shrink: 0; }
+.loc-btn {
+  padding: 5px 14px;
+  background: var(--green);
+  color: var(--bg);
+  border: none;
+  border-radius: 100px;
+  font-family: 'Manrope', sans-serif;
+  font-weight: 700;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.loc-btn:hover { opacity: 0.85; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: var(--panel-w);
+  height: 100%;
+  background: rgba(10,11,13,0.92);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+  z-index: 400;
+}
+
+/* Mobile: bottom sheet */
+@media (max-width: 700px) {
+  .sidebar {
+    position: fixed;
+    left: 0; right: 0;
+    bottom: 0;
+    width: 100%;
+    height: var(--sheet-h);
+    border-right: none;
+    border-top: 1px solid var(--border2);
+    border-radius: 20px 20px 0 0;
+    padding-bottom: var(--safe-bottom);
   }
-
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    font-family: 'Inter', system-ui, sans-serif;
-    background: #f2f2f7;
-    color: var(--text-main);
-    height: 100vh;
-    overflow: hidden;
-    -webkit-font-smoothing: antialiased;
-  }
-
-  /* ── Immersive Map Container ── */
-  .map-container {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    z-index: 1;
-  }
-
-  #map { width: 100%; height: 100%; z-index: 1; }
-
-  /* Hide Leaflet Branding & Clutter */
-  .leaflet-control-attribution { display: none !important; }
-  .leaflet-control-zoom { display: none !important; }
-  .leaflet-top, .leaflet-bottom { z-index: 10 !important; }
-
-  /* ── Floating Header ── */
-  .floating-nav {
-    position: absolute;
-    top: calc(1rem + var(--safe-top));
-    left: 1rem;
+  .map-controls {
+    bottom: calc(var(--sheet-h) + 1rem);
     right: 1rem;
-    z-index: 100;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    pointer-events: none;
   }
+  .loc-banner {
+    bottom: calc(var(--sheet-h) + 1rem);
+  }
+}
 
-  .nav-group {
-    display: flex;
-    gap: 10px;
-    pointer-events: auto;
-  }
+/* ── Sidebar Header ── */
+.sidebar-header {
+  padding: 1.25rem 1.25rem 1rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
 
-  .glass-card {
-    background: var(--bg-glass);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid var(--border-glass);
-    border-radius: 16px;
-    box-shadow: var(--shadow-soft);
-    padding: 10px 16px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
+/* Mobile drag handle */
+@media (max-width: 700px) {
+  .sidebar-header::before {
+    content: '';
+    display: block;
+    width: 36px; height: 4px;
+    border-radius: 2px;
+    background: var(--surface2);
+    margin: 0 auto 1rem;
   }
+}
 
-  .logo {
-    font-family: 'Outfit', sans-serif;
-    font-weight: 700;
-    font-size: 1.2rem;
-    color: var(--text-main);
-    text-decoration: none;
-    letter-spacing: -0.02em;
-  }
-  .logo span { color: var(--primary); }
+.sidebar-eyebrow {
+  font-family: 'Syne Mono', monospace;
+  font-size: 0.62rem;
+  color: var(--text-faint);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
 
-  .btn-icon {
-    width: 40px; height: 40px;
-    border-radius: 12px;
-    border: none;
-    background: var(--bg-glass);
-    backdrop-filter: blur(20px);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; transition: 0.2s;
-    box-shadow: var(--shadow-soft);
-    pointer-events: auto;
-  }
-  .btn-icon:active { transform: scale(0.95); background: rgba(255,255,255,1); }
-  .btn-icon svg { width: 20px; height: 20px; stroke: var(--text-main); fill: none; stroke-width: 2; }
+.nearby-count {
+  font-family: 'Syne', sans-serif;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--text);
+  line-height: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.nearby-count small {
+  font-family: 'Manrope', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-soft);
+  letter-spacing: 0;
+}
 
-  /* ── Action Sidebar (The Drawer) ── */
-  .drawer {
-    position: absolute;
-    top: 0; left: 0; bottom: 0;
-    width: 360px;
-    z-index: 200;
-    background: var(--bg-glass);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border-right: 1px solid var(--border-glass);
-    transform: translateX(-100%);
-    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    display: flex;
-    flex-direction: column;
-    padding-top: calc(5rem + var(--safe-top));
-  }
-  .drawer.open { transform: translateX(0); }
+/* Radius control */
+.radius-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 1rem;
+  padding-top: 0.875rem;
+  border-top: 1px solid var(--border);
+}
+.radius-label {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
 
-  .drawer-header {
-    padding: 0 24px 20px;
-  }
-  .drawer-title {
-    font-family: 'Outfit', sans-serif;
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin-bottom: 4px;
-  }
-  .drawer-subtitle {
-    color: var(--text-muted);
-    font-size: 0.85rem;
-  }
+input[type="range"] {
+  flex: 1;
+  height: 3px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--surface2);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px rgba(57,224,138,0.5);
+  border: 2px solid var(--bg);
+  cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--green);
+  border: 2px solid var(--bg);
+}
+.radius-val {
+  font-family: 'Syne Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--green);
+  min-width: 42px;
+  text-align: right;
+}
 
-  .radius-pill {
-    background: rgba(0,0,0,0.05);
-    border-radius: 12px;
-    padding: 12px;
-    margin: 10px 24px;
-  }
-  .radius-header {
-    display: flex; justify-content: space-between;
-    font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
-    color: var(--text-muted); margin-bottom: 8px;
-  }
-  input[type="range"] {
-    width: 100%; height: 4px;
-    accent-color: var(--primary);
-  }
+/* ── User List ── */
+.user-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 0;
+}
+.user-list::-webkit-scrollbar { width: 3px; }
+.user-list::-webkit-scrollbar-track { background: transparent; }
+.user-list::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 2px; }
 
-  .user-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 10px 16px;
-  }
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 0.75rem;
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-faint);
+}
+.empty-state-icon {
+  width: 56px; height: 56px;
+  border-radius: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 4px;
+}
+.empty-state-icon svg { width: 24px; height: 24px; stroke: var(--text-faint); fill: none; stroke-width: 1.5; }
+.empty-state p { font-size: 0.82rem; line-height: 1.6; max-width: 200px; }
 
-  .user-card {
-    background: rgba(255,255,255,0.4);
-    border-radius: 14px;
-    padding: 12px;
-    display: flex; align-items: center; gap: 12px;
-    margin-bottom: 8px;
-    cursor: pointer;
-    transition: 0.2s;
-    border: 1px solid transparent;
-  }
-  .user-card:hover { background: rgba(255,255,255,0.8); border-color: var(--border-glass); }
+/* User Item */
+.user-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 0.875rem 1.25rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.user-item::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: transparent;
+  border-radius: 0 2px 2px 0;
+  transition: background 0.2s;
+}
+.user-item:hover { background: var(--bg2); }
+.user-item:hover::before { background: var(--border2); }
+.user-item.highlighted { background: rgba(57,224,138,0.05); }
+.user-item.highlighted::before { background: var(--green); }
 
-  .avatar {
-    width: 44px; height: 44px;
-    border-radius: 12px;
-    background: var(--primary);
-    color: white;
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 600;
-    flex-shrink: 0;
-    position: relative;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-  }
-  .online-status {
-    position: absolute; top: -2px; right: -2px;
-    width: 10px; height: 10px;
-    border-radius: 50%; background: var(--accent);
-    border: 2px solid white;
-  }
+.user-pin {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+.user-pin img { width: 100%; height: 100%; object-fit: cover; }
 
-  .user-details { flex: 1; min-width: 0; }
-  .u-name { font-weight: 600; font-size: 0.95rem; display: block; }
-  .u-bio { font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.online-dot {
+  position: absolute;
+  bottom: 1px; right: 1px;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--green);
+  border: 2px solid var(--bg);
+  box-shadow: 0 0 6px var(--green);
+}
 
-  /* ── Map HUD (Heads Up Display) ── */
-  .map-hud {
-    position: absolute;
-    bottom: 2rem; right: 1rem;
-    z-index: 100;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
+.user-info { flex: 1; min-width: 0; }
 
-  /* ── Custom Map Pins ── */
-  .custom-marker {
-    background: var(--primary);
-    width: 42px; height: 42px;
-    border-radius: 14px 14px 14px 4px;
-    transform: rotate(-45deg);
-    border: 3px solid white;
-    box-shadow: 0 8px 16px rgba(0,122,255,0.3);
-    display: flex; align-items: center; justify-content: center;
-  }
-  .marker-content {
-    transform: rotate(45deg);
-    width: 100%; height: 100%;
-    display: flex; align-items: center; justify-content: center;
-    color: white; font-weight: 600; font-size: 10px;
-  }
+.user-name {
+  font-family: 'Syne', sans-serif;
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
-  /* Responsive Adjustments */
-  @media (max-width: 600px) {
-    .drawer {
-      width: 100%;
-      height: 70vh;
-      bottom: 0; top: auto;
-      border-radius: 24px 24px 0 0;
-      transform: translateY(100%);
-      padding-top: 2rem;
-    }
-    .drawer.open { transform: translateY(0); }
-  }
+.user-bio {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.user-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.tag {
+  font-size: 0.64rem;
+  font-weight: 500;
+  padding: 2px 8px;
+  background: var(--surface);
+  color: var(--text-faint);
+  border-radius: 100px;
+  border: 1px solid var(--border);
+}
+.tag.shared {
+  background: var(--green-dim);
+  color: var(--green);
+  border-color: transparent;
+}
+
+.user-dist {
+  font-family: 'Syne Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding-top: 3px;
+}
+
+/* ── Profile Panel ── */
+.profile-panel {
+  position: fixed;
+  top: var(--nav-h); right: 0; bottom: 0;
+  width: min(340px, 92vw);
+  background: rgba(10,11,13,0.96);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-left: 1px solid var(--border2);
+  z-index: 600;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.16,1,0.3,1);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.profile-panel.open { transform: translateX(0); }
+
+.panel-close {
+  position: absolute;
+  top: 14px; right: 14px;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--surface2);
+  border: none;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-soft);
+  transition: background 0.15s, color 0.15s;
+}
+.panel-close:hover { background: var(--surface); color: var(--text); }
+.panel-close svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2.2; }
+
+.panel-header {
+  padding: 1.5rem 1.25rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.panel-avatar {
+  width: 56px; height: 56px;
+  border-radius: 18px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: white;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.panel-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.panel-name {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+.panel-status {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.panel-status.online { color: var(--green); }
+.panel-status.online::before {
+  content: '';
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+}
+
+.panel-body { padding: 1.25rem; flex: 1; }
+.panel-section { margin-bottom: 1.5rem; }
+.panel-label {
+  font-family: 'Syne Mono', monospace;
+  font-size: 0.6rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-faint);
+  margin-bottom: 8px;
+}
+.panel-bio {
+  font-size: 0.84rem;
+  color: var(--text-soft);
+  line-height: 1.7;
+}
+.panel-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ── User Menu ── */
+.user-menu {
+  position: absolute;
+  top: calc(var(--nav-h) + 8px);
+  right: calc(1.25rem + var(--safe-right));
+  background: rgba(17,19,24,0.98);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  padding: 6px;
+  z-index: 700;
+  min-width: 172px;
+  display: none;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+  animation: menu-in 0.15s ease;
+}
+@keyframes menu-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.user-menu.open { display: block; }
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  border: none;
+  background: none;
+  font-family: 'Manrope', sans-serif;
+  font-size: 0.84rem;
+  color: var(--text-soft);
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.menu-item svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; flex-shrink: 0; }
+.menu-item:hover { background: var(--surface2); color: var(--text); }
+.menu-item.danger { color: var(--danger); }
+.menu-item.danger:hover { background: rgba(255,76,76,0.1); }
+.menu-divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+/* ── Tablet layout tweaks ── */
+@media (max-width: 900px) and (min-width: 701px) {
+  :root { --panel-w: 280px; }
+}
+
+/* ── Map tile dark filter ── */
+.leaflet-tile-pane {
+  filter: brightness(0.4) saturate(0.4) contrast(1.1) hue-rotate(200deg);
+}
+
+/* ── Radius circle style ── */
+/* set in JS */
 </style>
 </head>
 <body>
+<div class="app">
 
-  <!-- Floating Navigation -->
-  <div class="floating-nav">
-    <div class="nav-group">
-      <button class="btn-icon" id="toggle-drawer" title="Toggle List">
-        <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-      </button>
-      <div class="glass-card">
-        <a href="#" class="logo">Near<span>Me</span></a>
+<!-- Nav -->
+<nav>
+  <a href="/" class="logo">
+    <span class="logo-dot"></span>
+    NearMe
+  </a>
+  <div class="nav-right">
+    <button class="nav-pill" id="btn-locate">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+      Re-center
+    </button>
+    <div class="nav-avatar" id="nav-avatar" tabindex="0" role="button" aria-label="User menu">?</div>
+  </div>
+</nav>
+
+<!-- User dropdown -->
+<div class="user-menu" id="user-menu" role="menu">
+  <button class="menu-item" onclick="location.href='/onboarding'" role="menuitem">
+    <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    Edit profile
+  </button>
+  <div class="menu-divider"></div>
+  <button class="menu-item danger" id="btn-logout" role="menuitem">
+    <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    Sign out
+  </button>
+</div>
+
+<!-- Main -->
+<div class="app-shell">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-eyebrow">People nearby</div>
+      <div class="nearby-count">
+        <span id="nearby-num">—</span>
+        <small id="nearby-unit">within 5 km</small>
+      </div>
+      <div class="radius-row">
+        <span class="radius-label">Radius</span>
+        <input type="range" id="radius-slider" min="500" max="20000" step="500" value="5000" aria-label="Search radius"/>
+        <span class="radius-val" id="radius-label">5 km</span>
       </div>
     </div>
-    
-    <div class="nav-group">
-      <button class="btn-icon" id="btn-recenter" title="Recenter">
+
+    <div class="user-list" id="user-list" role="list">
+      <div class="empty-state" id="empty-state">
+        <div class="empty-state-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+        </div>
+        <p>Scanning for people around you…</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Map -->
+  <div class="map-wrap">
+    <div id="map" role="region" aria-label="Map"></div>
+
+    <!-- Controls -->
+    <div class="map-controls">
+      <button class="map-ctrl-locate" id="btn-locate-fab" title="Go to my location" aria-label="Go to my location">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
       </button>
-      <div class="avatar" style="width: 40px; height: 40px; border-radius: 12px;" id="profile-trigger">JD</div>
-    </div>
-  </div>
-
-  <!-- Main Map -->
-  <div class="map-container">
-    <div id="map"></div>
-  </div>
-
-  <!-- Zoom Controls HUD -->
-  <div class="map-hud">
-    <button class="btn-icon" onclick="map.zoomIn()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-    <button class="btn-icon" onclick="map.zoomOut()"><svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-  </div>
-
-  <!-- People Sidebar / Drawer -->
-  <div class="drawer" id="sidebar-drawer">
-    <div class="drawer-header">
-      <h2 class="drawer-title">Discovery</h2>
-      <p class="drawer-subtitle">Finding people around you</p>
-    </div>
-
-    <div class="radius-pill">
-      <div class="radius-header">
-        <span>Range</span>
-        <span id="radius-val">5 km</span>
-      </div>
-      <input type="range" id="radius-slider" min="1" max="20" value="5">
-    </div>
-
-    <div class="user-list" id="user-list">
-      <!-- Users populated by JS -->
-      <div class="user-card">
-        <div class="avatar">AS <div class="online-status"></div></div>
-        <div class="user-details">
-          <span class="u-name">Alex Smith</span>
-          <span class="u-bio">Coffee enthusiast & UI Designer</span>
-        </div>
+      <div class="map-ctrl-group">
+        <button class="map-ctrl-btn" id="btn-zoom-in" title="Zoom in" aria-label="Zoom in">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <button class="map-ctrl-btn" id="btn-zoom-out" title="Zoom out" aria-label="Zoom out">
+          <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
       </div>
     </div>
+
+    <!-- Location banner -->
+    <div class="loc-banner" id="loc-banner" role="alert">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+      </svg>
+      Share your location to appear on the map
+      <button class="loc-btn" id="btn-grant-loc">Allow</button>
+    </div>
   </div>
+</div>
+
+<!-- Profile panel -->
+<div class="profile-panel" id="profile-panel" role="dialog" aria-modal="true" aria-label="User profile">
+  <button class="panel-close" id="panel-close" aria-label="Close profile">
+    <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <div class="panel-header" id="panel-header"></div>
+  <div class="panel-body" id="panel-body"></div>
+</div>
+
+</div><!-- .app -->
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/socket.io/client-dist/socket.io.min.js"></script>
 <script>
-  let map;
-  let drawerOpen = false;
-  const sidebar = document.getElementById('sidebar-drawer');
-  const toggleBtn = document.getElementById('toggle-drawer');
+// ── State ──────────────────────────────────────────────────────────────────────
+let myUser = null, myCoords = null, nearbyUsers = [], radius = 5000;
+let map, myMarker, myCircle;
+const markers = new Map();
+const PIN_COLORS = [
+  '#39e08a','#5b8dee','#e06b39','#9b59b6','#e0d039','#39c5e0','#e03975'
+];
 
-  // Initialize Immersive Map
-  function initMap() {
-    // Hidden attribution is set via CSS, but clean up UI options here
-    map = L.map('map', {
-      center: [40.7128, -74.0060], // Default New York
-      zoom: 13,
-      zoomControl: false,
-      attributionControl: false
-    });
+function colorFor(id) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return PIN_COLORS[h % PIN_COLORS.length];
+}
 
-    // Modern "Positron" style map
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 20
-    }).addTo(map);
+function fmtDist(m) {
+  return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`;
+}
 
-    // Custom Marker Example
-    const customIcon = L.divIcon({
-      className: '',
-      html: `<div class="custom-marker"><div class="marker-content">AS</div></div>`,
-      iconSize: [42, 42],
-      iconAnchor: [4, 42]
-    });
+function lastSeenLabel(u) {
+  if (u.isOnline) return { text: 'Online now', online: true };
+  const d = Date.now() - new Date(u.lastSeen).getTime();
+  const min = Math.round(d / 60000);
+  if (min < 2) return { text: 'Just now', online: false };
+  if (min < 60) return { text: `${min}m ago`, online: false };
+  const hr = Math.round(min / 60);
+  if (hr < 24) return { text: `${hr}h ago`, online: false };
+  return { text: `${Math.round(hr / 24)}d ago`, online: false };
+}
 
-    L.marker([40.7128, -74.0060], { icon: customIcon }).addTo(map)
-      .bindPopup("<b>Alex Smith</b><br>Active 2m ago");
+function sharedTags(u) {
+  if (!myUser?.interests?.length) return [];
+  return (u.interests || []).filter(t => myUser.interests.includes(t));
+}
+
+// ── Map init ────────────────────────────────────────────────────────────────────
+function initMap(lat, lng) {
+  map = L.map('map', {
+    center: [lat, lng],
+    zoom: 14,
+    zoomControl: false,
+    attributionControl: false,
+  });
+
+  // Dark-style tile layer (CartoDB Dark Matter)
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    subdomains: 'abcd',
+    maxZoom: 19,
+  }).addTo(map);
+
+  // Radius circle
+  myCircle = L.circle([lat, lng], {
+    radius,
+    color: '#39e08a',
+    fillColor: '#39e08a',
+    fillOpacity: 0.04,
+    weight: 1,
+    dashArray: '6 5',
+  }).addTo(map);
+
+  // Me marker
+  myMarker = L.marker([lat, lng], { icon: makePinIcon(myUser, true) }).addTo(map);
+  myMarker.bindPopup('<div class="popup-inner"><div class="popup-name">You</div></div>');
+
+  // Ctrl buttons
+  document.getElementById('btn-zoom-in').onclick = () => map.zoomIn();
+  document.getElementById('btn-zoom-out').onclick = () => map.zoomOut();
+  const recenter = () => { if (myCoords) map.setView([myCoords.lat, myCoords.lng], 14); };
+  document.getElementById('btn-locate').onclick = recenter;
+  document.getElementById('btn-locate-fab').onclick = recenter;
+}
+
+function makePinIcon(user, isMe = false) {
+  const color = isMe ? '#39e08a' : colorFor(user._id || 'x');
+  const initials = (user?.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const imgHtml = user?.avatar
+    ? `<img src="${user.avatar}" alt=""/>`
+    : initials;
+
+  const html = `
+    <div class="lf-pin">
+      <div class="lf-bubble ${isMe ? 'lf-me' : ''}" style="background:${color};">${imgHtml}</div>
+      <div class="lf-stem"></div>
+      <div class="lf-dot"></div>
+    </div>`;
+
+  return L.divIcon({ html, className: '', iconSize: [42, 58], iconAnchor: [21, 58] });
+}
+
+function makePopupContent(u) {
+  const shared = sharedTags(u);
+  const tagsHtml = (u.interests || []).slice(0, 6).map(t =>
+    `<span class="popup-tag ${shared.includes(t) ? 'shared' : ''}">${t}</span>`
+  ).join('');
+  return `
+    <div class="popup-inner">
+      <div class="popup-name">${u.name}</div>
+      ${u.bio ? `<div class="popup-bio">${u.bio.slice(0, 80)}${u.bio.length > 80 ? '…' : ''}</div>` : ''}
+      ${tagsHtml ? `<div class="popup-tags">${tagsHtml}</div>` : ''}
+    </div>`;
+}
+
+function addOrUpdateMarker(u) {
+  if (markers.has(u._id)) {
+    const m = markers.get(u._id);
+    m.setIcon(makePinIcon(u));
+    m.setPopupContent(makePopupContent(u));
+  } else {
+    const m = L.marker(
+      [u.location.coordinates[1], u.location.coordinates[0]],
+      { icon: makePinIcon(u) }
+    ).addTo(map);
+    m.bindPopup(makePopupContent(u));
+    m.on('click', () => openPanel(u));
+    markers.set(u._id, m);
+  }
+}
+
+function removeMarker(userId) {
+  if (markers.has(userId)) {
+    map.removeLayer(markers.get(userId));
+    markers.delete(userId);
+  }
+}
+
+// ── Sidebar rendering ────────────────────────────────────────────────────────────
+function renderSidebar() {
+  const list = document.getElementById('user-list');
+  const empty = document.getElementById('empty-state');
+  list.querySelectorAll('.user-item').forEach(el => el.remove());
+
+  if (!nearbyUsers.length) {
+    empty.style.display = 'flex';
+    document.getElementById('nearby-num').textContent = '0';
+    return;
   }
 
-  // UI Interactivity
-  toggleBtn.addEventListener('click', () => {
-    drawerOpen = !drawerOpen;
-    sidebar.classList.toggle('open', drawerOpen);
-    // Update button icon or style if needed
-    toggleBtn.style.background = drawerOpen ? 'var(--primary)' : 'var(--bg-glass)';
-    toggleBtn.querySelector('svg').style.stroke = drawerOpen ? '#fff' : 'var(--text-main)';
-  });
+  empty.style.display = 'none';
+  document.getElementById('nearby-num').textContent = nearbyUsers.length;
+  document.getElementById('nearby-unit').textContent =
+    `within ${radius >= 1000 ? (radius/1000).toFixed(0)+'km' : radius+'m'}`;
 
-  document.getElementById('radius-slider').addEventListener('input', (e) => {
-    document.getElementById('radius-val').innerText = e.target.value + ' km';
-  });
+  nearbyUsers.forEach(u => {
+    const shared = sharedTags(u);
+    const topTags = (u.interests || []).slice(0, 4);
+    const tagsHtml = topTags.map(t =>
+      `<span class="tag ${shared.includes(t) ? 'shared' : ''}">${t}</span>`
+    ).join('');
+    const color = colorFor(u._id);
+    const initials = (u.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const avatarHtml = u.avatar
+      ? `<img src="${u.avatar}" alt=""/>`
+      : initials;
 
-  window.onload = initMap;
+    let distHtml = '';
+    if (myCoords && u.location?.coordinates) {
+      const [lng, lat] = u.location.coordinates;
+      const d = map.distance([myCoords.lat, myCoords.lng], [lat, lng]);
+      distHtml = `<div class="user-dist">${fmtDist(d)}</div>`;
+    }
+
+    const ls = lastSeenLabel(u);
+
+    const item = document.createElement('div');
+    item.className = 'user-item';
+    item.dataset.id = u._id;
+    item.setAttribute('role', 'listitem');
+    item.innerHTML = `
+      <div class="user-pin" style="background:${color};">
+        ${avatarHtml}
+        ${u.isOnline ? '<div class="online-dot"></div>' : ''}
+      </div>
+      <div class="user-info">
+        <div class="user-name">${u.name}</div>
+        <div class="user-bio">${u.bio || ls.text}</div>
+        ${tagsHtml ? `<div class="user-tags">${tagsHtml}</div>` : ''}
+      </div>
+      ${distHtml}
+    `;
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.user-item').forEach(el => el.classList.remove('highlighted'));
+      item.classList.add('highlighted');
+      openPanel(u);
+      if (u.location?.coordinates) {
+        map.setView([u.location.coordinates[1], u.location.coordinates[0]], 15);
+        markers.get(u._id)?.openPopup();
+      }
+    });
+    list.appendChild(item);
+  });
+}
+
+// ── Profile panel ────────────────────────────────────────────────────────────────
+function openPanel(u) {
+  const shared = sharedTags(u);
+  const color = colorFor(u._id);
+  const initials = (u.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const ls = lastSeenLabel(u);
+
+  document.getElementById('panel-header').innerHTML = `
+    <div class="panel-avatar" style="background:${color};">
+      ${u.avatar ? `<img src="${u.avatar}" alt=""/>` : initials}
+    </div>
+    <div>
+      <div class="panel-name">${u.name}</div>
+      <div class="panel-status ${ls.online ? 'online' : ''}">${ls.text}</div>
+    </div>
+  `;
+
+  let bodyHtml = '';
+  if (u.bio) {
+    bodyHtml += `
+      <div class="panel-section">
+        <div class="panel-label">About</div>
+        <div class="panel-bio">${u.bio}</div>
+      </div>`;
+  }
+  if (u.interests?.length) {
+    const tagsHtml = u.interests.map(t =>
+      `<span class="tag ${shared.includes(t) ? 'shared' : ''}">${t}</span>`
+    ).join('');
+    bodyHtml += `
+      <div class="panel-section">
+        <div class="panel-label">Interests${shared.length ? ` &nbsp;·&nbsp; <span style="color:var(--green)">${shared.length} shared</span>` : ''}</div>
+        <div class="panel-tags">${tagsHtml}</div>
+      </div>`;
+  }
+  if (!bodyHtml) bodyHtml = '<div class="panel-bio" style="color:var(--text-faint);">No profile info yet.</div>';
+  document.getElementById('panel-body').innerHTML = bodyHtml;
+  document.getElementById('profile-panel').classList.add('open');
+}
+
+document.getElementById('panel-close').addEventListener('click', () =>
+  document.getElementById('profile-panel').classList.remove('open')
+);
+
+// ── Fetch nearby ────────────────────────────────────────────────────────────────
+async function fetchNearby() {
+  if (!myCoords) return;
+  try {
+    const res = await fetch(`/api/users/nearby?lat=${myCoords.lat}&lng=${myCoords.lng}&radius=${radius}&limit=50`);
+    if (!res.ok) return;
+    nearbyUsers = await res.json();
+    const ids = new Set(nearbyUsers.map(u => u._id));
+    markers.forEach((_, id) => { if (!ids.has(id)) removeMarker(id); });
+    nearbyUsers.forEach(u => { if (u.location?.coordinates) addOrUpdateMarker(u); });
+    renderSidebar();
+  } catch (e) {}
+}
+
+// ── Radius slider ────────────────────────────────────────────────────────────────
+document.getElementById('radius-slider').addEventListener('input', e => {
+  radius = parseInt(e.target.value, 10);
+  document.getElementById('radius-label').textContent =
+    radius >= 1000 ? `${(radius/1000).toFixed(0)} km` : `${radius} m`;
+  if (myCircle) myCircle.setRadius(radius);
+  fetchNearby();
+});
+
+// ── Geolocation ──────────────────────────────────────────────────────────────────
+function startTracking() {
+  navigator.geolocation.watchPosition(pos => {
+    const { latitude: lat, longitude: lng } = pos.coords;
+    myCoords = { lat, lng };
+    if (!map) {
+      initMap(lat, lng);
+      fetchNearby();
+    } else {
+      myMarker?.setLatLng([lat, lng]);
+      myCircle?.setLatLng([lat, lng]);
+    }
+    socket?.emit('user:location', { lat, lng });
+    document.getElementById('loc-banner').style.display = 'none';
+  }, () => {
+    document.getElementById('loc-banner').style.display = 'flex';
+    if (!map) initMap(17.385, 78.4867);
+  }, { enableHighAccuracy: true, maximumAge: 10000 });
+}
+
+// ── Socket.IO ────────────────────────────────────────────────────────────────────
+let socket;
+function initSocket() {
+  socket = io({ transports: ['websocket', 'polling'] });
+  socket.on('connect', () => {
+    socket.emit('user:join');
+    const pending = sessionStorage.getItem('pendingLocation');
+    if (pending) {
+      try {
+        const { lat, lng } = JSON.parse(pending);
+        socket.emit('user:location', { lat, lng });
+      } catch (e) {}
+      sessionStorage.removeItem('pendingLocation');
+    }
+  });
+  socket.on('user:online', ({ userId }) => {
+    const u = nearbyUsers.find(u => u._id === userId);
+    if (u) { u.isOnline = true; renderSidebar(); }
+  });
+  socket.on('user:offline', ({ userId }) => {
+    const u = nearbyUsers.find(u => u._id === userId);
+    if (u) { u.isOnline = false; renderSidebar(); }
+  });
+  socket.on('user:moved', ({ userId, lat, lng }) => {
+    const u = nearbyUsers.find(u => u._id === userId);
+    if (u) {
+      u.location = { type: 'Point', coordinates: [lng, lat] };
+      markers.get(userId)?.setLatLng([lat, lng]);
+      renderSidebar();
+    } else {
+      fetchNearby();
+    }
+  });
+}
+
+// ── User menu ────────────────────────────────────────────────────────────────────
+document.getElementById('nav-avatar').addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('user-menu').classList.toggle('open');
+});
+document.addEventListener('click', () =>
+  document.getElementById('user-menu').classList.remove('open')
+);
+document.getElementById('btn-logout').addEventListener('click', async () => {
+  await fetch('/auth/logout', { method: 'POST' });
+  location.href = '/';
+});
+document.getElementById('btn-grant-loc').addEventListener('click', startTracking);
+
+// ── Init ────────────────────────────────────────────────────────────────────────
+async function init() {
+  const res = await fetch('/auth/me');
+  if (!res.ok) { location.href = '/'; return; }
+  myUser = await res.json();
+  if (!myUser.profileComplete) { location.href = '/onboarding'; return; }
+
+  const av = document.getElementById('nav-avatar');
+  if (myUser.avatar) {
+    av.innerHTML = `<img src="${myUser.avatar}" alt=""/>`;
+  } else {
+    av.textContent = (myUser.name || '?').slice(0, 2).toUpperCase();
+  }
+
+  initSocket();
+
+  if ('geolocation' in navigator) {
+    startTracking();
+  } else {
+    document.getElementById('loc-banner').style.display = 'flex';
+    initMap(17.385, 78.4867);
+  }
+
+  setInterval(fetchNearby, 30000);
+}
+
+init();
 </script>
 </body>
 </html>
-
