@@ -1,461 +1,930 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <title>NearMe — Discover Your Circle</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <style>
-    /* ── Design Tokens ── */
-    :root {
-      --bg-main: #0f1115;
-      --bg-card: rgba(23, 25, 31, 0.85);
-      --bg-hover: rgba(45, 48, 58, 0.6);
-      --accent: #6366f1; /* Indigo */
-      --accent-glow: rgba(99, 102, 241, 0.4);
-      --text-pri: #f8fafc;
-      --text-sec: #94a3b8;
-      --text-faint: #64748b;
-      --border: rgba(255, 255, 255, 0.08);
-      --glass-border: rgba(255, 255, 255, 0.1);
-      --sidebar-w: 360px;
-      --nav-h: 68px;
-    }
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NearMe — map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --ink: #1a1a18;
+    --ink-soft: #5a5a55;
+    --ink-faint: #9a9a93;
+    --surface: #f7f6f2;
+    --white: #ffffff;
+    --accent: #2d5a3d;
+    --accent-light: #e8f0eb;
+    --accent-mid: #4a8c5f;
+    --border: rgba(26,26,24,0.12);
+    --danger: #c0392b;
+    --sidebar-w: 320px;
+    --nav-h: 56px;
+  }
 
-    body {
-      font-family: 'Inter', system-ui, sans-serif;
-      background: var(--bg-main);
-      color: var(--text-pri);
-      height: 100vh;
-      width: 100vw;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
+  html, body { height: 100%; overflow: hidden; }
 
-    h1, h2, h3, .logo { font-family: 'Outfit', sans-serif; }
+  body {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background: var(--surface);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+  }
 
-    /* ── Nav ── */
-    nav {
-      height: var(--nav-h);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 1.5rem;
-      background: rgba(15, 17, 21, 0.8);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--border);
-      z-index: 1000;
-    }
+  /* ── Nav ── */
+  nav {
+    height: var(--nav-h);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1rem 0 1.25rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--white);
+    flex-shrink: 0;
+    z-index: 500;
+    position: relative;
+  }
 
-    .logo {
-      font-size: 1.5rem;
-      font-weight: 700;
-      letter-spacing: -0.03em;
-      color: var(--text-pri);
-      text-decoration: none;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .logo span { color: var(--accent); }
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.3rem;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .logo span { color: var(--accent); }
 
-    .nav-actions { display: flex; align-items: center; gap: 1rem; }
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
 
-    .btn-icon {
-      width: 40px; height: 40px;
-      border-radius: 12px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      color: var(--text-sec);
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; transition: 0.2s;
-    }
-    .btn-icon:hover { border-color: var(--accent); color: var(--text-pri); background: var(--bg-hover); }
+  .nav-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: white;
+    cursor: pointer;
+    overflow: hidden;
+    border: 2px solid var(--accent-light);
+    transition: border-color 0.2s;
+  }
+  .nav-avatar:hover { border-color: var(--accent-mid); }
+  .nav-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
-    .user-pill {
-      height: 40px;
-      padding: 0 4px 0 12px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      display: flex; align-items: center; gap: 10px;
-      cursor: pointer; transition: 0.2s;
-    }
-    .user-pill:hover { border-color: var(--accent); }
-    .user-pill-name { font-size: 0.85rem; font-weight: 500; color: var(--text-pri); }
-    .user-pill-avatar {
-      width: 32px; height: 32px;
-      border-radius: 50%;
-      background: var(--accent);
-      color: white;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.75rem; font-weight: 600;
-      overflow: hidden;
-    }
+  .nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    background: transparent;
+    font-family: inherit;
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .nav-btn:hover { background: var(--surface); color: var(--ink); }
+  .nav-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.5; }
 
-    /* ── App Layout ── */
-    .app-main {
-      flex: 1;
-      display: flex;
-      position: relative;
-      overflow: hidden;
-    }
+  /* ── App shell ── */
+  .app-shell {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
 
-    /* ── Sidebar ── */
+  /* ── Sidebar ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    background: var(--white);
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  @media (max-width: 680px) {
     .sidebar {
-      width: var(--sidebar-w);
-      background: var(--bg-main);
-      border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      z-index: 900;
-    }
-
-    .sidebar-header {
-      padding: 1.5rem;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .stats-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      margin-bottom: 1.5rem;
-    }
-    .stat-label { font-size: 0.75rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
-    .stat-value { font-size: 2rem; font-weight: 700; color: var(--text-pri); line-height: 1; }
-    .stat-unit { font-size: 0.9rem; color: var(--text-sec); font-weight: 400; margin-left: 4px; }
-
-    .control-group {
-      background: var(--bg-card);
-      padding: 1rem;
-      border-radius: 16px;
-      border: 1px solid var(--border);
-    }
-    .control-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
-    .control-label { font-size: 0.8rem; color: var(--text-sec); }
-    .control-value { font-size: 0.8rem; color: var(--accent); font-weight: 600; }
-
-    input[type="range"] {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
       width: 100%;
-      height: 4px;
-      -webkit-appearance: none;
-      background: var(--border);
-      border-radius: 2px;
-      accent-color: var(--accent);
+      height: 50vh;
+      border-right: none;
+      border-top: 1px solid var(--border);
+      z-index: 400;
     }
+  }
 
-    /* ── User List ── */
-    .user-list {
-      flex: 1;
-      overflow-y: auto;
-      padding: 1rem;
-    }
+  .sidebar-header {
+    padding: 1rem 1.25rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
 
-    .user-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 1rem;
-      margin-bottom: 0.75rem;
-      display: flex;
-      gap: 12px;
-      cursor: pointer;
-      transition: 0.25s;
-    }
-    .user-card:hover { 
-      background: var(--bg-hover);
-      transform: translateY(-2px);
-    }
+  .sidebar-title {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
 
-    .card-avatar {
-      width: 48px; height: 48px;
-      border-radius: 14px;
-      background: var(--accent);
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 600; color: white;
-      flex-shrink: 0;
-    }
+  .nearby-count {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.4rem;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
 
-    .card-content { flex: 1; min-width: 0; }
-    .card-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; color: var(--text-pri); }
-    .card-bio { font-size: 0.8rem; color: var(--text-sec); line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    
-    .tag-container { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
-    .mini-tag {
-      font-size: 0.65rem;
-      padding: 2px 8px;
-      border-radius: 6px;
-      background: rgba(255,255,255,0.05);
-      color: var(--text-faint);
-      border: 1px solid var(--border);
-    }
+  .nearby-count small {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: var(--ink-soft);
+  }
 
-    .card-dist { font-size: 0.75rem; color: var(--text-faint); font-weight: 500; }
+  .radius-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 0.75rem;
+  }
 
-    /* ── Map ── */
-    .map-container {
-      flex: 1;
-      position: relative;
-    }
-    #map { width: 100%; height: 100%; background: #0b0c10; }
+  .radius-control label { font-size: 0.78rem; color: var(--ink-soft); white-space: nowrap; }
 
-    /* Custom Map Controls Overlay */
-    .map-overlay-tools {
-      position: absolute;
-      top: 20px; right: 20px;
-      display: flex; flex-direction: column; gap: 10px;
-      z-index: 800;
-    }
+  input[type="range"] {
+    flex: 1;
+    height: 3px;
+    accent-color: var(--accent);
+  }
 
-    /* ── Hide Leaflet Credit ── */
-    .leaflet-control-attribution { display: none !important; }
+  .radius-val { font-size: 0.78rem; font-weight: 500; color: var(--ink); min-width: 38px; text-align: right; }
 
-    /* ── Custom Marker ── */
-    .custom-marker {
-      position: relative;
-      width: 44px; height: 44px;
-    }
-    .marker-inner {
-      width: 100%; height: 100%;
-      border-radius: 16px;
-      border: 2.5px solid white;
-      background: var(--accent);
-      display: flex; align-items: center; justify-content: center;
-      transform: rotate(-45deg);
-      box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-    }
-    .marker-inner span { 
-      transform: rotate(45deg); 
-      color: white; font-weight: 700; font-size: 14px; 
-    }
+  /* ── User list ── */
+  .user-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem 0;
+  }
 
-    /* Permission Banner */
-    #loc-gate {
-      position: absolute; 
-      inset: 0; 
-      background: rgba(15,17,21,0.85); 
-      z-index: 1100; 
-      display: flex; 
-      align-items: center; 
-      justify-content: center; 
-      backdrop-filter: blur(12px);
-    }
-    .gate-card {
-      max-width: 340px; 
-      text-align: center; 
-      background: var(--bg-card); 
-      padding: 2.5rem; 
-      border-radius: 28px; 
-      border: 1px solid var(--border);
-      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-    }
+  .user-list::-webkit-scrollbar { width: 4px; }
+  .user-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-    @media (max-width: 800px) {
-      .sidebar {
-        position: absolute; bottom: 0; left: 0; right: 0;
-        width: 100%; height: 40vh;
-        border-right: none; border-top: 1px solid var(--border);
-        background: rgba(15,17,21,0.95);
-      }
-    }
-  </style>
+  .user-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 0.75rem 1.25rem;
+    cursor: pointer;
+    transition: background 0.15s;
+    border-bottom: 1px solid var(--border);
+  }
+  .user-item:hover { background: var(--surface); }
+  .user-item.highlighted { background: var(--accent-light); }
+
+  .user-pin {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: white;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .user-pin img { width: 100%; height: 100%; object-fit: cover; }
+
+  .online-dot {
+    position: absolute;
+    bottom: 1px; right: 1px;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--accent-mid);
+    border: 1.5px solid white;
+  }
+
+  .user-info { flex: 1; min-width: 0; }
+
+  .user-name {
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--ink);
+  }
+
+  .user-bio {
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+  }
+
+  .user-tags {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 5px;
+  }
+
+  .tag {
+    font-size: 0.68rem;
+    padding: 2px 7px;
+    background: var(--surface);
+    color: var(--ink-soft);
+    border-radius: 100px;
+    border: 1px solid var(--border);
+  }
+
+  .tag.shared {
+    background: var(--accent-light);
+    color: var(--accent);
+    border-color: transparent;
+  }
+
+  .user-dist {
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding-top: 4px;
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 0.5rem;
+    color: var(--ink-faint);
+    font-size: 0.875rem;
+    padding: 2rem;
+    text-align: center;
+  }
+
+  .empty-state svg { width: 36px; height: 36px; stroke: var(--ink-faint); fill: none; stroke-width: 1.2; margin-bottom: 0.5rem; }
+
+  /* ── Map ── */
+  .map-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #map {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Leaflet overrides */
+  .leaflet-container { font-family: 'DM Sans', sans-serif; }
+  .leaflet-popup-content-wrapper {
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    border: 1px solid var(--border);
+  }
+  .leaflet-popup-content { margin: 12px 14px; }
+  .leaflet-popup-tip-container { display: none; }
+
+  /* custom pin */
+  .lf-pin {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+  }
+  .lf-bubble {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 3px solid white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    overflow: hidden;
+  }
+  .lf-bubble img { width: 100%; height: 100%; object-fit: cover; }
+  .lf-tail { width: 2px; height: 7px; background: rgba(0,0,0,0.25); }
+  .lf-dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(0,0,0,0.2); }
+  .lf-me { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(45,90,61,0.2); }
+
+  /* popup content */
+  .popup-name { font-weight: 500; font-size: 0.9rem; color: var(--ink); margin-bottom: 3px; }
+  .popup-bio { font-size: 0.78rem; color: var(--ink-soft); margin-bottom: 6px; }
+  .popup-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .popup-tag { font-size: 0.68rem; padding: 2px 7px; background: var(--surface); border-radius: 100px; color: var(--ink-soft); }
+  .popup-tag.shared { background: var(--accent-light); color: var(--accent); }
+
+  /* map controls */
+  .map-controls {
+    position: absolute;
+    top: 12px; right: 12px;
+    z-index: 450;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .map-ctrl-btn {
+    width: 36px; height: 36px;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .map-ctrl-btn:hover { background: var(--surface); }
+  .map-ctrl-btn svg { width: 16px; height: 16px; stroke: var(--ink-soft); fill: none; stroke-width: 1.5; }
+
+  /* location permission banner */
+  .loc-banner {
+    position: absolute;
+    bottom: 12px; left: 50%;
+    transform: translateX(-50%);
+    z-index: 450;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.75rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    white-space: nowrap;
+  }
+
+  .loc-banner button {
+    padding: 4px 12px;
+    background: var(--ink);
+    color: white;
+    border: none;
+    border-radius: 100px;
+    font-family: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+
+  /* Profile panel (slide-in) */
+  .profile-panel {
+    position: fixed;
+    top: var(--nav-h); right: 0; bottom: 0;
+    width: 300px;
+    background: var(--white);
+    border-left: 1px solid var(--border);
+    z-index: 600;
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .profile-panel.open { transform: translateX(0); }
+
+  .panel-close {
+    position: absolute;
+    top: 12px; right: 12px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--ink-soft);
+    font-size: 1.2rem;
+    line-height: 1;
+  }
+
+  .panel-header {
+    padding: 1.5rem 1.25rem 1rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .panel-avatar {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 500; font-size: 1rem;
+    color: white; overflow: hidden;
+    flex-shrink: 0;
+  }
+  .panel-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+  .panel-name { font-weight: 500; font-size: 1rem; color: var(--ink); }
+  .panel-status { font-size: 0.78rem; color: var(--ink-faint); margin-top: 2px; }
+
+  .panel-body { padding: 1rem 1.25rem; }
+  .panel-section { margin-bottom: 1.25rem; }
+  .panel-label { font-size: 0.72rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-faint); margin-bottom: 6px; }
+  .panel-bio { font-size: 0.875rem; color: var(--ink-soft); line-height: 1.6; }
+  .panel-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+
+  /* Logout panel */
+  .user-menu {
+    position: absolute;
+    top: calc(var(--nav-h) + 4px); right: 1rem;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px;
+    z-index: 700;
+    min-width: 160px;
+    display: none;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  }
+  .user-menu.open { display: block; }
+  .menu-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 8px 12px;
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-size: 0.875rem;
+    color: var(--ink-soft);
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .menu-item:hover { background: var(--surface); color: var(--ink); }
+  .menu-item.danger { color: var(--danger); }
+  .menu-item.danger:hover { background: #fef2f2; }
+</style>
 </head>
 <body>
 
-  <nav>
-    <a href="#" class="logo" onclick="location.reload()">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-      Near<span>Me</span>
-    </a>
-    
-    <div class="nav-actions">
-      <button class="btn-icon" id="btn-recenter" title="Recenter Map">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+<nav>
+  <a href="/" class="logo">Near<span>Me</span></a>
+  <div class="nav-right">
+    <button class="nav-btn" id="btn-locate">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+      Re-center
+    </button>
+    <div class="nav-avatar" id="nav-avatar" tabindex="0">?</div>
+  </div>
+</nav>
+
+<div class="user-menu" id="user-menu">
+  <button class="menu-item" onclick="location.href='/onboarding'">Edit profile</button>
+  <button class="menu-item danger" id="btn-logout">Sign out</button>
+</div>
+
+<div class="app-shell">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">People nearby</div>
+      <div class="nearby-count">
+        <span id="nearby-num">—</span>
+        <small id="nearby-unit">within 5 km</small>
+      </div>
+      <div class="radius-control">
+        <label for="radius-slider">Radius</label>
+        <input type="range" id="radius-slider" min="500" max="20000" step="500" value="5000"/>
+        <span class="radius-val" id="radius-label">5 km</span>
+      </div>
+    </div>
+    <div class="user-list" id="user-list">
+      <div class="empty-state" id="empty-state">
+        <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+        Finding people nearby…
+      </div>
+    </div>
+  </aside>
+
+  <!-- Map -->
+  <div class="map-wrap">
+    <div id="map"></div>
+
+    <div class="map-controls">
+      <button class="map-ctrl-btn" id="btn-zoom-in" title="Zoom in">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </button>
-      <div class="user-pill">
-        <span class="user-pill-name">You</span>
-        <div class="user-pill-avatar">ME</div>
-      </div>
+      <button class="map-ctrl-btn" id="btn-zoom-out" title="Zoom out">
+        <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
     </div>
-  </nav>
 
-  <main class="app-main">
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <div class="stats-row">
-          <div>
-            <div class="stat-label">Active Nearby</div>
-            <div class="stat-value" id="nearby-count">0<span class="stat-unit">People</span></div>
-          </div>
-        </div>
-
-        <div class="control-group">
-          <div class="control-header">
-            <span class="control-label">Search Radius</span>
-            <span class="control-value" id="radius-text">5.0 km</span>
-          </div>
-          <input type="range" id="radius-slider" min="0.5" max="25" step="0.5" value="5">
-        </div>
-      </div>
-
-      <div class="user-list" id="user-list"></div>
-    </aside>
-
-    <div class="map-container">
-      <div id="map"></div>
-      
-      <div class="map-overlay-tools">
-        <button class="btn-icon" id="zoom-in">+</button>
-        <button class="btn-icon" id="zoom-out">−</button>
-      </div>
-      
-      <div id="loc-gate">
-        <div class="gate-card">
-           <div style="width:64px; height:64px; background:var(--accent-glow); border-radius:20px; display:flex; align-items:center; justify-content:center; margin:0 auto 1.5rem; color:var(--accent);">
-             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-           </div>
-           <h3 style="margin-bottom:0.5rem;">Find Your Circle</h3>
-           <p style="font-size:0.9rem; color:var(--text-sec); margin-bottom:1.5rem;">To see people around you, we need your location. Or try the demo mode below.</p>
-           <button id="grant-btn" style="width:100%; padding:14px; background:var(--accent); color:white; border:none; border-radius:14px; font-weight:600; cursor:pointer; margin-bottom: 0.75rem;">Enable GPS</button>
-           <button id="demo-btn" style="width:100%; padding:14px; background:transparent; color:var(--text-sec); border:1px solid var(--border); border-radius:14px; font-weight:500; cursor:pointer;">Try Demo Mode</button>
-        </div>
-      </div>
+    <div class="loc-banner" id="loc-banner" style="display:none;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+      Share location to appear on the map
+      <button id="btn-grant-loc">Allow</button>
     </div>
-  </main>
+  </div>
+</div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    let map, myCircle, userMarkers = new Map();
-    let myPos = null;
-    let radius = 5;
-    let users = [];
+<!-- Profile panel -->
+<div class="profile-panel" id="profile-panel">
+  <button class="panel-close" id="panel-close">✕</button>
+  <div class="panel-header" id="panel-header"></div>
+  <div class="panel-body" id="panel-body"></div>
+</div>
 
-    window.onload = () => {
-      initMap();
-      setupUI();
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/socket.io/client-dist/socket.io.min.js"></script>
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let myUser = null;
+  let myCoords = null;
+  let nearbyUsers = [];
+  let radius = 5000;
+  let map, myMarker, myCircle;
+  const markers = new Map(); // userId → leaflet marker
+  const PIN_COLORS = ['#4a7c8c','#8c6a4a','#7a4a8c','#4a8c6a','#8c4a4a','#4a5a8c','#6a8c4a'];
+
+  function colorFor(id) {
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+    return PIN_COLORS[h % PIN_COLORS.length];
+  }
+
+  function fmtDist(m) {
+    if (m < 1000) return `${Math.round(m)} m`;
+    return `${(m / 1000).toFixed(1)} km`;
+  }
+
+  function lastSeenLabel(u) {
+    if (u.isOnline) return 'Online now';
+    const d = Date.now() - new Date(u.lastSeen).getTime();
+    const min = Math.round(d / 60000);
+    if (min < 2) return 'Just now';
+    if (min < 60) return `${min} min ago`;
+    const hr = Math.round(min / 60);
+    if (hr < 24) return `${hr}h ago`;
+    return `${Math.round(hr / 24)}d ago`;
+  }
+
+  function sharedTags(u) {
+    if (!myUser?.interests?.length) return [];
+    return (u.interests || []).filter(t => myUser.interests.includes(t));
+  }
+
+  // ── Map init ───────────────────────────────────────────────────────────────
+  function initMap(lat, lng) {
+    map = L.map('map', {
+      center: [lat, lng],
+      zoom: 14,
+      zoomControl: false,
+      attributionControl: true,
+    });
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 19,
+    }).addTo(map);
+
+    // Radius circle
+    myCircle = L.circle([lat, lng], {
+      radius,
+      color: '#2d5a3d',
+      fillColor: '#2d5a3d',
+      fillOpacity: 0.04,
+      weight: 1.5,
+      dashArray: '6 4',
+    }).addTo(map);
+
+    // Me marker
+    myMarker = L.marker([lat, lng], { icon: makePinIcon(myUser, true) }).addTo(map);
+    myMarker.bindPopup('<div class="popup-name">You</div>');
+
+    document.getElementById('btn-zoom-in').onclick = () => map.zoomIn();
+    document.getElementById('btn-zoom-out').onclick = () => map.zoomOut();
+    document.getElementById('btn-locate').onclick = () => {
+      if (myCoords) map.setView([myCoords.lat, myCoords.lng], 14);
     };
+  }
 
-    function initMap() {
-      map = L.map('map', { zoomControl: false, attributionControl: false, center: [37.7749, -122.4194], zoom: 13 });
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+  function makePinIcon(user, isMe = false) {
+    const color = isMe ? '#2d5a3d' : colorFor(user._id || 'x');
+    const initials = (user.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const imgHtml = user.avatar
+      ? `<img src="${user.avatar}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"/>`
+      : initials;
+
+    const html = `
+      <div class="lf-pin">
+        <div class="lf-bubble ${isMe ? 'lf-me' : ''}" style="background:${color};">${imgHtml}</div>
+        <div class="lf-tail"></div>
+        <div class="lf-dot"></div>
+      </div>`;
+
+    return L.divIcon({ html, className: '', iconSize: [40, 55], iconAnchor: [20, 55] });
+  }
+
+  function makePopupContent(u) {
+    const shared = sharedTags(u);
+    const tagsHtml = (u.interests || []).slice(0, 6).map(t =>
+      `<span class="popup-tag ${shared.includes(t) ? 'shared' : ''}">${t}</span>`
+    ).join('');
+    return `
+      <div class="popup-name">${u.name}</div>
+      ${u.bio ? `<div class="popup-bio">${u.bio.slice(0, 80)}${u.bio.length > 80 ? '…' : ''}</div>` : ''}
+      ${tagsHtml ? `<div class="popup-tags">${tagsHtml}</div>` : ''}
+    `;
+  }
+
+  function addOrUpdateMarker(u) {
+    if (markers.has(u._id)) {
+      const m = markers.get(u._id);
+      m.setIcon(makePinIcon(u));
+      m.setPopupContent(makePopupContent(u));
+    } else {
+      const m = L.marker(
+        [u.location.coordinates[1], u.location.coordinates[0]],
+        { icon: makePinIcon(u) }
+      ).addTo(map);
+      m.bindPopup(makePopupContent(u));
+      m.on('click', () => openPanel(u));
+      markers.set(u._id, m);
+    }
+  }
+
+  function removeMarker(userId) {
+    if (markers.has(userId)) {
+      map.removeLayer(markers.get(userId));
+      markers.delete(userId);
+    }
+  }
+
+  // ── Nearby list ────────────────────────────────────────────────────────────
+  function renderSidebar() {
+    const list = document.getElementById('user-list');
+    const empty = document.getElementById('empty-state');
+
+    list.querySelectorAll('.user-item').forEach(el => el.remove());
+
+    if (!nearbyUsers.length) {
+      empty.style.display = 'flex';
+      document.getElementById('nearby-num').textContent = '0';
+      return;
     }
 
-    function setupUI() {
-      const slider = document.getElementById('radius-slider');
-      slider.oninput = (e) => {
-        radius = parseFloat(e.target.value);
-        document.getElementById('radius-text').innerText = radius.toFixed(1) + ' km';
-        if (myCircle) myCircle.setRadius(radius * 1000);
-        renderList();
-        updateMarkers();
-      };
+    empty.style.display = 'none';
+    document.getElementById('nearby-num').textContent = nearbyUsers.length;
+    document.getElementById('nearby-unit').textContent = `within ${radius >= 1000 ? (radius/1000).toFixed(0)+'km' : radius+'m'}`;
 
-      document.getElementById('zoom-in').onclick = () => map.zoomIn();
-      document.getElementById('zoom-out').onclick = () => map.zoomOut();
-      document.getElementById('btn-recenter').onclick = () => myPos && map.panTo(myPos);
-      document.getElementById('grant-btn').onclick = requestLocation;
-      document.getElementById('demo-btn').onclick = () => useLocation(37.7749, -122.4194);
-    }
+    nearbyUsers.forEach(u => {
+      const shared = sharedTags(u);
+      const topTags = (u.interests || []).slice(0, 4);
+      const tagsHtml = topTags.map(t =>
+        `<span class="tag ${shared.includes(t) ? 'shared' : ''}">${t}</span>`
+      ).join('');
+      const color = colorFor(u._id);
+      const initials = (u.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+      const avatarHtml = u.avatar
+        ? `<img src="${u.avatar}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"/>`
+        : initials;
 
-    function requestLocation() {
-      if (!navigator.geolocation) {
-        useLocation(37.7749, -122.4194);
-        return;
+      // distance from my position
+      let distHtml = '';
+      if (myCoords && u.location?.coordinates) {
+        const [lng, lat] = u.location.coordinates;
+        const d = map.distance([myCoords.lat, myCoords.lng], [lat, lng]);
+        distHtml = `<div class="user-dist">${fmtDist(d)}</div>`;
       }
-      navigator.geolocation.getCurrentPosition(
-        (pos) => useLocation(pos.coords.latitude, pos.coords.longitude),
-        () => useLocation(37.7749, -122.4194)
-      );
-    }
 
-    function useLocation(lat, lng) {
-      document.getElementById('loc-gate').style.display = 'none';
-      myPos = { lat, lng };
-      map.setView(myPos, 14);
-      
-      if (myCircle) map.removeLayer(myCircle);
-      myCircle = L.circle(myPos, {
-        radius: radius * 1000,
-        color: 'rgba(99, 102, 241, 0.4)',
-        fillColor: 'rgba(99, 102, 241, 0.05)',
-        weight: 1
-      }).addTo(map);
-
-      L.marker(myPos, {
-        icon: L.divIcon({
-          className: '',
-          html: `<div class="custom-marker"><div class="marker-inner" style="background:#fff; border-color:var(--accent)"><span style="color:var(--accent)">ME</span></div></div>`,
-          iconSize: [44, 44], iconAnchor: [22, 44]
-        })
-      }).addTo(map);
-
-      generateMockUsers();
-    }
-
-    function generateMockUsers() {
-      const names = ["Alex", "Sarah", "Jordan", "Taylor", "Casey", "Morgan", "Riley"];
-      const bios = ["Loves hiking and tech", "Digital Nomad", "Coffee enthusiast", "UI Designer", "Music producer", "Vlogger", "Casual gamer"];
-      users = names.map((name, i) => {
-        const uLat = myPos.lat + (Math.random() - 0.5) * 0.1;
-        const uLng = myPos.lng + (Math.random() - 0.5) * 0.1;
-        return {
-          id: i,
-          name,
-          bio: bios[i % bios.length],
-          lat: uLat,
-          lng: uLng,
-          dist: calculateDist(myPos.lat, myPos.lng, uLat, uLng)
-        };
-      });
-      renderList();
-      updateMarkers();
-    }
-
-    function calculateDist(lat1, lon1, lat2, lon2) {
-      const R = 6371;
-      const dLat = (lat2-lat1) * Math.PI/180;
-      const dLon = (lon2-lon1) * Math.PI/180;
-      const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2) * Math.sin(dLon/2);
-      return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
-    }
-
-    function renderList() {
-      const filtered = users.filter(u => u.dist <= radius).sort((a,b) => a.dist - b.dist);
-      document.getElementById('nearby-count').innerHTML = `${filtered.length}<span class="stat-unit">People</span>`;
-      document.getElementById('user-list').innerHTML = filtered.map(u => `
-        <div class="user-card" onclick="map.flyTo([${u.lat}, ${u.lng}], 15)">
-          <div class="card-avatar">${u.name[0]}</div>
-          <div class="card-content">
-            <div class="card-name">${u.name}</div>
-            <div class="card-bio">${u.bio}</div>
-          </div>
-          <div class="card-dist">${u.dist.toFixed(1)}km</div>
+      const item = document.createElement('div');
+      item.className = 'user-item';
+      item.dataset.id = u._id;
+      item.innerHTML = `
+        <div class="user-pin" style="background:${color};">
+          ${avatarHtml}
+          ${u.isOnline ? '<div class="online-dot"></div>' : ''}
         </div>
-      `).join('');
+        <div class="user-info">
+          <div class="user-name">${u.name}</div>
+          ${u.bio ? `<div class="user-bio">${u.bio}</div>` : `<div class="user-bio">${lastSeenLabel(u)}</div>`}
+          ${tagsHtml ? `<div class="user-tags">${tagsHtml}</div>` : ''}
+        </div>
+        ${distHtml}
+      `;
+      item.addEventListener('click', () => {
+        openPanel(u);
+        if (u.location?.coordinates) {
+          map.setView([u.location.coordinates[1], u.location.coordinates[0]], 15);
+          markers.get(u._id)?.openPopup();
+        }
+      });
+      list.appendChild(item);
+    });
+  }
+
+  // ── Profile panel ──────────────────────────────────────────────────────────
+  function openPanel(u) {
+    const shared = sharedTags(u);
+    const color = colorFor(u._id);
+    const initials = (u.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
+    const header = document.getElementById('panel-header');
+    const body = document.getElementById('panel-body');
+
+    header.innerHTML = `
+      <div class="panel-avatar" style="background:${color};">
+        ${u.avatar ? `<img src="${u.avatar}" alt=""/>` : initials}
+      </div>
+      <div>
+        <div class="panel-name">${u.name}</div>
+        <div class="panel-status">${lastSeenLabel(u)}</div>
+      </div>
+    `;
+
+    let bodyHtml = '';
+    if (u.bio) {
+      bodyHtml += `<div class="panel-section"><div class="panel-label">About</div><div class="panel-bio">${u.bio}</div></div>`;
+    }
+    if (u.interests?.length) {
+      const tagsHtml = u.interests.map(t =>
+        `<span class="tag ${shared.includes(t) ? 'shared' : ''}">${t}</span>`
+      ).join('');
+      bodyHtml += `<div class="panel-section"><div class="panel-label">Interests${shared.length ? ` · <span style="color:var(--accent)">${shared.length} shared</span>` : ''}</div><div class="panel-tags">${tagsHtml}</div></div>`;
+    }
+    if (!bodyHtml) {
+      bodyHtml = '<div class="panel-bio" style="color:var(--ink-faint);">No profile info yet.</div>';
+    }
+    body.innerHTML = bodyHtml;
+
+    document.getElementById('profile-panel').classList.add('open');
+  }
+
+  document.getElementById('panel-close').addEventListener('click', () => {
+    document.getElementById('profile-panel').classList.remove('open');
+  });
+
+  // ── Fetch nearby ───────────────────────────────────────────────────────────
+  async function fetchNearby() {
+    if (!myCoords) return;
+    try {
+      const res = await fetch(`/api/users/nearby?lat=${myCoords.lat}&lng=${myCoords.lng}&radius=${radius}&limit=50`);
+      if (!res.ok) return;
+      nearbyUsers = await res.json();
+
+      // update markers
+      const ids = new Set(nearbyUsers.map(u => u._id));
+      markers.forEach((_, id) => { if (!ids.has(id)) removeMarker(id); });
+      nearbyUsers.forEach(u => {
+        if (u.location?.coordinates) addOrUpdateMarker(u);
+      });
+
+      renderSidebar();
+    } catch (e) { /* silent */ }
+  }
+
+  // ── Radius slider ──────────────────────────────────────────────────────────
+  document.getElementById('radius-slider').addEventListener('input', e => {
+    radius = parseInt(e.target.value, 10);
+    const label = radius >= 1000 ? `${(radius/1000).toFixed(0)} km` : `${radius} m`;
+    document.getElementById('radius-label').textContent = label;
+    if (myCircle) myCircle.setRadius(radius);
+    fetchNearby();
+  });
+
+  // ── Geolocation ────────────────────────────────────────────────────────────
+  function startTracking() {
+    navigator.geolocation.watchPosition(pos => {
+      const { latitude: lat, longitude: lng } = pos.coords;
+      myCoords = { lat, lng };
+
+      if (!map) {
+        initMap(lat, lng);
+        fetchNearby();
+      } else {
+        myMarker?.setLatLng([lat, lng]);
+        myCircle?.setLatLng([lat, lng]);
+      }
+
+      socket?.emit('user:location', { lat, lng });
+      document.getElementById('loc-banner').style.display = 'none';
+    }, () => {
+      document.getElementById('loc-banner').style.display = 'flex';
+      if (!map) initMap(17.385, 78.4867); // fallback: Hyderabad
+    }, { enableHighAccuracy: true, maximumAge: 10000 });
+  }
+
+  // ── Socket.IO ──────────────────────────────────────────────────────────────
+  let socket;
+
+  function initSocket() {
+    socket = io({ transports: ['websocket', 'polling'] });
+
+    socket.on('connect', () => {
+      socket.emit('user:join');
+      // flush pending location from onboarding
+      const pending = sessionStorage.getItem('pendingLocation');
+      if (pending) {
+        try {
+          const { lat, lng } = JSON.parse(pending);
+          socket.emit('user:location', { lat, lng });
+        } catch (e) {}
+        sessionStorage.removeItem('pendingLocation');
+      }
+    });
+
+    socket.on('user:online', ({ userId }) => {
+      const u = nearbyUsers.find(u => u._id === userId);
+      if (u) { u.isOnline = true; renderSidebar(); }
+    });
+
+    socket.on('user:offline', ({ userId }) => {
+      const u = nearbyUsers.find(u => u._id === userId);
+      if (u) { u.isOnline = false; renderSidebar(); }
+    });
+
+    socket.on('user:moved', ({ userId, lat, lng }) => {
+      const u = nearbyUsers.find(u => u._id === userId);
+      if (u) {
+        u.location = { type: 'Point', coordinates: [lng, lat] };
+        const m = markers.get(userId);
+        if (m) m.setLatLng([lat, lng]);
+        renderSidebar();
+      } else {
+        // someone moved into range — re-fetch
+        fetchNearby();
+      }
+    });
+  }
+
+  // ── User menu ──────────────────────────────────────────────────────────────
+  document.getElementById('nav-avatar').addEventListener('click', e => {
+    e.stopPropagation();
+    document.getElementById('user-menu').classList.toggle('open');
+  });
+  document.addEventListener('click', () => document.getElementById('user-menu').classList.remove('open'));
+
+  document.getElementById('btn-logout').addEventListener('click', async () => {
+    await fetch('/auth/logout', { method: 'POST' });
+    location.href = '/';
+  });
+
+  document.getElementById('btn-grant-loc').addEventListener('click', startTracking);
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  async function init() {
+    // Load own profile
+    const res = await fetch('/auth/me');
+    if (!res.ok) { location.href = '/'; return; }
+    myUser = await res.json();
+    if (!myUser.profileComplete) { location.href = '/onboarding'; return; }
+
+    // Set nav avatar
+    const av = document.getElementById('nav-avatar');
+    if (myUser.avatar) {
+      av.innerHTML = `<img src="${myUser.avatar}" alt=""/>`;
+    } else {
+      av.textContent = (myUser.name || '?').slice(0, 2).toUpperCase();
     }
 
-    function updateMarkers() {
-      userMarkers.forEach(m => map.removeLayer(m));
-      userMarkers.clear();
-      users.forEach(u => {
-        if (u.dist > radius) return;
-        const m = L.marker([u.lat, u.lng], {
-          icon: L.divIcon({
-            className: '',
-            html: `<div class="custom-marker"><div class="marker-inner"><span>${u.name[0]}</span></div></div>`,
-            iconSize: [44, 44], iconAnchor: [22, 44]
-          })
-        }).addTo(map);
-        userMarkers.set(u.id, m);
-      });
+    initSocket();
+
+    // Try location
+    if ('geolocation' in navigator) {
+      startTracking();
+    } else {
+      document.getElementById('loc-banner').style.display = 'flex';
+      initMap(17.385, 78.4867);
     }
-  </script>
+
+    // Refresh nearby every 30s
+    setInterval(fetchNearby, 30000);
+  }
+
+  init();
+</script>
 </body>
 </html>
