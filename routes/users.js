@@ -12,7 +12,6 @@ function requireAuth(req, res, next) {
 router.use(requireAuth);
 
 // ── GET /api/users/me ─────────────────────────────────────────────────────────
-// Returns the full profile of the authenticated user
 router.get('/me', async (req, res) => {
   try {
     const user = await User.findById(req.user._id).lean();
@@ -24,7 +23,6 @@ router.get('/me', async (req, res) => {
 });
 
 // ── PATCH /api/users/me ───────────────────────────────────────────────────────
-// Update profile (used during onboarding and settings)
 router.patch('/me', async (req, res) => {
   const allowed = ['name', 'bio', 'interests'];
   const updates = {};
@@ -33,7 +31,6 @@ router.patch('/me', async (req, res) => {
     if (req.body[key] !== undefined) updates[key] = req.body[key];
   }
 
-  // Validate name
   if (updates.name !== undefined) {
     updates.name = String(updates.name).trim();
     if (!updates.name || updates.name.length > 100) {
@@ -41,7 +38,6 @@ router.patch('/me', async (req, res) => {
     }
   }
 
-  // Validate bio
   if (updates.bio !== undefined) {
     updates.bio = String(updates.bio).trim();
     if (updates.bio.length > 300) {
@@ -49,7 +45,6 @@ router.patch('/me', async (req, res) => {
     }
   }
 
-  // Validate interests
   if (updates.interests !== undefined) {
     if (!Array.isArray(updates.interests) || updates.interests.length > 20) {
       return res.status(400).json({ error: 'Interests must be an array of up to 20 items' });
@@ -57,7 +52,6 @@ router.patch('/me', async (req, res) => {
     updates.interests = updates.interests.map(i => String(i).trim()).filter(Boolean);
   }
 
-  // Always recompute profileComplete against the merged final state
   try {
     const existing = await User.findById(req.user._id).lean();
     if (!existing) return res.status(404).json({ error: 'User not found' });
@@ -81,14 +75,18 @@ router.patch('/me', async (req, res) => {
 });
 
 // ── GET /api/users/nearby ─────────────────────────────────────────────────────
-// Returns users within a given radius (default 5 km), sorted by distance
+// FIX 1: validate radius/limit for NaN before using them
+// FIX 2: filter profileComplete:true so half-onboarded users don't appear
 router.get('/nearby', async (req, res) => {
-  const { lat, lng, radius = 5000, limit = 50 } = req.query;
+  const { lat, lng, radius, limit } = req.query;
 
   const latN = parseFloat(lat);
   const lngN = parseFloat(lng);
-  const radiusN = Math.min(parseInt(radius, 10), 50000); // cap at 50 km
-  const limitN  = Math.min(parseInt(limit,  10), 100);
+
+  const rawRadius = parseInt(radius, 10);
+  const rawLimit  = parseInt(limit,  10);
+  const radiusN   = Math.min(isNaN(rawRadius) ? 5000 : rawRadius, 50000);
+  const limitN    = Math.min(isNaN(rawLimit)  ? 50   : rawLimit,  100);
 
   if (isNaN(latN) || isNaN(lngN) || latN < -90 || latN > 90 || lngN < -180 || lngN > 180) {
     return res.status(400).json({ error: 'Invalid coordinates' });
@@ -97,6 +95,7 @@ router.get('/nearby', async (req, res) => {
   try {
     const users = await User.find({
       _id: { $ne: req.user._id },
+      profileComplete: true,
       location: {
         $near: {
           $geometry: { type: 'Point', coordinates: [lngN, latN] },
@@ -115,7 +114,6 @@ router.get('/nearby', async (req, res) => {
 });
 
 // ── GET /api/users/:id ────────────────────────────────────────────────────────
-// Public profile of any user
 router.get('/:id', async (req, res) => {
   try {
     const user = await User.findById(req.params.id)
