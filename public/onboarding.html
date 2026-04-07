@@ -2,584 +2,853 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NearMe – Set Up Your Profile</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>NearMe — Create Your Profile</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-/* ── Tokens ─────────────────────────────────────────────────────────── */
+/* ─── Tokens ─────────────────────────────────────────────────── */
 :root {
-  --bg:        #080c10;
-  --surface:   rgba(255,255,255,0.04);
-  --surface-2: rgba(255,255,255,0.07);
-  --border:    rgba(255,255,255,0.08);
-  --border-2:  rgba(255,255,255,0.14);
-  --text:      #f0ece4;
-  --muted:     rgba(240,236,228,0.45);
-  --dim:       rgba(240,236,228,0.22);
-  --accent:    #ff4d1c;
-  --accent-2:  #ff8c5a;
-  --glow:      rgba(255,77,28,0.18);
+  --c-bg:        #0e0c0b;
+  --c-surface:   #161311;
+  --c-panel:     #1c1916;
+  --c-border:    rgba(255,248,235,0.08);
+  --c-text:      #fff8eb;
+  --c-muted:     rgba(255,248,235,0.38);
+  --c-faint:     rgba(255,248,235,0.055);
+  --c-fire:      #f5610d;
+  --c-fire-glow: rgba(245,97,13,0.18);
+  --c-fire-dim:  rgba(245,97,13,0.08);
+  --c-gold:      #e8b86d;
+  --radius-sm:   10px;
+  --radius-md:   16px;
+  --radius-lg:   24px;
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; overflow:hidden; }
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Instrument Sans', sans-serif;
-  min-height: 100vh;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  overflow-x: hidden;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: 'Outfit', sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ── Background ──────────────────────────────────────────────────────── */
-.scene { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
-.orb {
-  position: absolute; border-radius: 50%;
-  filter: blur(80px); opacity: 0.22;
-  animation: drift 18s ease-in-out infinite alternate;
-}
-.orb-1 { width: 520px; height: 520px; background: #ff4d1c; top: -120px; left: -160px; animation-duration: 20s; }
-.orb-2 { width: 380px; height: 380px; background: #3b6bff; bottom: -80px; right: -80px; animation-duration: 16s; animation-delay: -8s; }
-.orb-3 { width: 260px; height: 260px; background: #ff8c5a; top: 40%; left: 55%; animation-duration: 24s; animation-delay: -4s; opacity: 0.12; }
-@keyframes drift {
-  from { transform: translate(0,0) scale(1); }
-  to   { transform: translate(40px,30px) scale(1.08); }
-}
-.grid {
-  position: fixed; inset: 0; pointer-events: none; z-index: 0;
-  background-image:
-    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
-  background-size: 44px 44px;
+/* noise texture */
+body::before {
+  content:'';
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  opacity:0.022;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
 }
 
-/* ── Wrapper ─────────────────────────────────────────────────────────── */
-.wrapper {
-  position: relative; z-index: 10;
-  width: 100%; max-width: 520px;
-  padding: 48px 24px 80px;
+/* ─── Shell ──────────────────────────────────────────────────── */
+.shell {
+  position:relative; z-index:1;
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  height:100vh;
+}
+@media(max-width:760px){
+  .shell { grid-template-columns:1fr; grid-template-rows:auto 1fr; }
 }
 
-/* ── Logo ────────────────────────────────────────────────────────────── */
-.logo { display: flex; align-items: center; gap: 10px; margin-bottom: 52px; }
-.logo-mark {
-  width: 32px; height: 32px; background: var(--accent); border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  font-family: 'Instrument Serif', serif; font-size: 1.1rem; color: #fff; flex-shrink: 0;
+/* ─── Left ───────────────────────────────────────────────────── */
+.panel-left {
+  position:relative;
+  background: var(--c-surface);
+  border-right:1px solid var(--c-border);
+  display:flex; flex-direction:column;
+  justify-content:space-between;
+  padding:36px 40px;
+  overflow:hidden;
 }
-.logo-text { font-family: 'Instrument Serif', serif; font-size: 1.25rem; letter-spacing: -0.3px; }
-.logo-text em { font-style: italic; color: var(--accent); }
-
-/* ── Progress ────────────────────────────────────────────────────────── */
-.progress { display: flex; align-items: center; margin-bottom: 44px; }
-.prog-step { display: flex; align-items: center; flex: 1; }
-.prog-num {
-  width: 28px; height: 28px; border-radius: 50%;
-  border: 1.5px solid var(--border-2);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.72rem; font-weight: 600; color: var(--dim);
-  transition: all 0.35s ease; flex-shrink: 0; position: relative; z-index: 2;
+/* warm glow blob */
+.panel-left::after {
+  content:'';
+  position:absolute;
+  width:500px; height:500px;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(245,97,13,0.14) 0%, transparent 70%);
+  bottom:-150px; left:-150px;
+  pointer-events:none;
+  animation: blobDrift 8s ease-in-out infinite alternate;
 }
-.prog-num.active { border-color: var(--accent); color: var(--accent); background: var(--glow); box-shadow: 0 0 0 4px rgba(255,77,28,0.08); }
-.prog-num.done   { border-color: var(--border-2); background: var(--surface-2); color: var(--muted); }
-.prog-num.done::after { content: '✓'; position: absolute; font-size: 0.7rem; }
-.prog-num.done span { display: none; }
-.prog-line { flex: 1; height: 1px; background: var(--border); transition: background 0.35s; margin: 0 6px; }
-.prog-line.done { background: var(--border-2); }
-
-/* ── Steps ───────────────────────────────────────────────────────────── */
-/* Use visibility+opacity instead of display:none so animations fire reliably */
-.step {
-  visibility: hidden;
-  opacity: 0;
-  height: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-.step.active {
-  visibility: visible;
-  opacity: 1;
-  height: auto;
-  overflow: visible;
-  pointer-events: auto;
-  animation: stepIn 0.45s cubic-bezier(0.22,1,0.36,1) both;
-}
-@keyframes stepIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0); }
+@keyframes blobDrift {
+  from { transform:translate(0,0) scale(1); }
+  to   { transform:translate(30px,-20px) scale(1.1); }
 }
 
-/* ── Typography ──────────────────────────────────────────────────────── */
-.eyebrow { font-size: 0.72rem; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
-h2 { font-family: 'Instrument Serif', serif; font-size: clamp(2rem,6vw,2.8rem); font-weight: 400; line-height: 1.08; letter-spacing: -0.5px; margin-bottom: 12px; }
-h2 em { font-style: italic; color: var(--accent-2); }
-.sub { color: var(--muted); font-size: 0.92rem; line-height: 1.65; margin-bottom: 36px; }
+.logo {
+  font-family:'Playfair Display', serif;
+  font-size:1.1rem; font-weight:700;
+  letter-spacing:0.3px;
+  position:relative; z-index:2;
+}
+.logo em { color:var(--c-fire); font-style:normal; }
 
-/* ── Profile card ────────────────────────────────────────────────────── */
-.profile-card {
-  display: flex; align-items: center; gap: 18px;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 18px; padding: 20px 22px; margin-bottom: 28px;
-  position: relative; overflow: hidden;
+.artwork {
+  flex:1; display:flex; align-items:center; justify-content:center;
+  position:relative; z-index:2;
 }
-.profile-card::before {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+.artwork-inner {
+  text-align:center;
+  transition: opacity 0.4s ease, transform 0.4s var(--ease-out);
 }
-.avatar { width: 52px; height: 52px; border-radius: 14px; object-fit: cover; border: 1.5px solid var(--border-2); flex-shrink: 0; }
-.card-name { font-family: 'Instrument Serif', serif; font-size: 1.15rem; line-height: 1.2; margin-bottom: 3px; }
-.card-email { font-size: 0.8rem; color: var(--muted); }
-.card-badge {
-  margin-left: auto;
-  background: rgba(255,77,28,0.12); border: 1px solid rgba(255,77,28,0.25);
-  color: var(--accent); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.5px;
-  padding: 4px 10px; border-radius: 100px; white-space: nowrap;
+.artwork-inner.leaving { opacity:0; transform:translateY(-18px) scale(0.95); }
+
+.artwork-glyph {
+  font-size:clamp(5rem, 10vw, 8.5rem);
+  line-height:1; display:block; margin-bottom:20px;
+  filter:drop-shadow(0 0 36px rgba(245,97,13,0.45));
+  animation:floatGlyph 5s ease-in-out infinite;
+}
+@keyframes floatGlyph {
+  0%,100%{ transform:translateY(0) rotate(-3deg); }
+  50%    { transform:translateY(-14px) rotate(3deg); }
+}
+.artwork-label {
+  font-family:'Playfair Display', serif;
+  font-size:clamp(1.7rem, 3.5vw, 2.8rem);
+  font-weight:900; line-height:1.08; letter-spacing:-1px;
+}
+.artwork-label span { color:var(--c-fire); }
+.artwork-sub {
+  margin-top:12px; font-size:0.88rem;
+  color:var(--c-muted); font-weight:300;
+  max-width:230px; margin-left:auto; margin-right:auto;
+  line-height:1.7;
 }
 
-/* ── Fields ──────────────────────────────────────────────────────────── */
-.field { margin-bottom: 22px; }
-.field-label { font-size: 0.72rem; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; display: block; }
+.step-counter {
+  font-size:0.73rem; font-weight:500;
+  letter-spacing:2.5px; text-transform:uppercase;
+  color:var(--c-muted); position:relative; z-index:2;
+}
+.step-counter strong { color:var(--c-fire); }
+
+@media(max-width:760px){
+  .panel-left { padding:22px 22px 18px; border-right:none; border-bottom:1px solid var(--c-border); }
+  .artwork-glyph { font-size:3.5rem; }
+  .artwork-label { font-size:1.4rem; }
+  .artwork-sub { display:none; }
+  .panel-left::after { width:300px; height:300px; bottom:-80px; left:-80px; }
+}
+
+/* ─── Right ──────────────────────────────────────────────────── */
+.panel-right {
+  position:relative; display:flex; flex-direction:column; overflow:hidden;
+}
+
+.progress-bar {
+  position:absolute; top:0; left:0; height:3px;
+  background:linear-gradient(90deg, var(--c-fire), var(--c-gold));
+  z-index:10; transition:width 0.6s var(--ease-out);
+  box-shadow:0 0 14px rgba(245,97,13,0.55);
+}
+
+.steps-viewport { flex:1; overflow:hidden; position:relative; }
+
+.step-slide {
+  position:absolute; inset:0;
+  padding:clamp(26px,5vw,54px) clamp(22px,5vw,50px);
+  overflow-y:auto; display:flex; flex-direction:column;
+  opacity:0; transform:translateX(50px); pointer-events:none;
+  transition:opacity 0.4s var(--ease-out), transform 0.4s var(--ease-out);
+  -webkit-overflow-scrolling:touch;
+}
+.step-slide.active  { opacity:1; transform:translateX(0); pointer-events:all; }
+.step-slide.exiting { opacity:0; transform:translateX(-50px); }
+
+.step-spacer { flex:1; min-height:16px; }
+
+.step-eyebrow {
+  font-size:0.7rem; font-weight:600; letter-spacing:3px;
+  text-transform:uppercase; color:var(--c-fire); margin-bottom:9px;
+}
+.step-title {
+  font-family:'Playfair Display', serif;
+  font-size:clamp(1.5rem,3vw,2.1rem);
+  font-weight:700; line-height:1.15; letter-spacing:-0.4px; margin-bottom:8px;
+}
+.step-desc {
+  font-size:0.88rem; color:var(--c-muted); line-height:1.72;
+  margin-bottom:28px; font-weight:300; max-width:370px;
+}
+
+/* ─── Welcome card ───────────────────────────────────────────── */
+.welcome-card {
+  display:flex; align-items:center; gap:18px;
+  background:var(--c-faint);
+  border:1px solid var(--c-border);
+  border-radius:var(--radius-lg);
+  padding:20px 22px; margin-bottom:26px;
+  position:relative; overflow:hidden;
+}
+.welcome-card::before {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(135deg, var(--c-fire-dim), transparent 60%);
+  pointer-events:none;
+}
+.avatar-wrap { position:relative; flex-shrink:0; }
+.welcome-avatar {
+  width:58px; height:58px; border-radius:50%; object-fit:cover;
+  border:2.5px solid var(--c-fire); display:block;
+  background: var(--c-panel);
+}
+.avatar-ring {
+  position:absolute; inset:-5px; border-radius:50%;
+  border:1.5px solid rgba(245,97,13,0.3);
+  animation:ringPulse 2.8s ease infinite;
+}
+@keyframes ringPulse {
+  0%,100%{ opacity:1; transform:scale(1); }
+  50%    { opacity:0.35; transform:scale(1.09); }
+}
+.welcome-info { flex:1; min-width:0; position:relative; }
+.welcome-name {
+  font-family:'Playfair Display', serif;
+  font-size:1.1rem; font-weight:700; margin-bottom:3px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.welcome-email { font-size:0.78rem; color:var(--c-muted); }
+.new-badge {
+  display:inline-block; margin-top:6px;
+  background:var(--c-fire-dim); border:1px solid rgba(245,97,13,0.25);
+  color:var(--c-fire); border-radius:100px;
+  padding:2px 10px; font-size:0.68rem; font-weight:600; letter-spacing:1.2px; text-transform:uppercase;
+}
+
+/* ─── Form fields ────────────────────────────────────────────── */
+.field { margin-bottom:20px; }
+.field-label {
+  display:block; font-size:0.72rem; font-weight:600;
+  letter-spacing:1.8px; text-transform:uppercase;
+  color:var(--c-muted); margin-bottom:8px;
+}
+.field-label em { color:var(--c-fire); font-style:normal; margin-left:2px; }
+
+.input-wrap { position:relative; }
 textarea, input[type="text"] {
-  width: 100%; background: var(--surface); border: 1px solid var(--border);
-  border-radius: 14px; padding: 14px 18px; color: var(--text);
-  font-family: 'Instrument Sans', sans-serif; font-size: 0.95rem; outline: none;
-  transition: border-color 0.2s, background 0.2s; resize: none;
+  width:100%; background:var(--c-faint);
+  border:1.5px solid var(--c-border);
+  border-radius:var(--radius-md);
+  padding:13px 16px; color:var(--c-text);
+  font-family:'Outfit', sans-serif; font-size:0.92rem; font-weight:400;
+  outline:none; resize:none;
+  transition:border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  -webkit-appearance:none;
 }
-textarea { min-height: 96px; line-height: 1.6; }
-textarea:focus, input[type="text"]:focus { border-color: rgba(255,77,28,0.5); background: var(--surface-2); }
-textarea::placeholder, input::placeholder { color: var(--dim); }
+textarea:focus, input[type="text"]:focus {
+  border-color:var(--c-fire);
+  background:var(--c-fire-dim);
+  box-shadow:0 0 0 3px rgba(245,97,13,0.09);
+}
+textarea { min-height:90px; line-height:1.65; }
+.char-count {
+  position:absolute; bottom:10px; right:12px;
+  font-size:0.68rem; color:var(--c-muted); pointer-events:none;
+  transition:color 0.2s ease;
+}
+.char-count.warn { color:var(--c-fire); }
 
-/* ── Tags ────────────────────────────────────────────────────────────── */
-.tags-selected { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; min-height: 4px; }
-.tag {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: rgba(255,77,28,0.12); border: 1px solid rgba(255,77,28,0.3);
-  color: var(--accent-2); border-radius: 100px;
-  padding: 5px 12px 5px 14px; font-size: 0.82rem; font-weight: 500;
-  animation: tagPop 0.2s cubic-bezier(0.34,1.56,0.64,1);
+/* ─── Interest chips ─────────────────────────────────────────── */
+.tags-bar {
+  display:flex; flex-wrap:wrap; gap:6px;
+  min-height:30px; margin-bottom:14px;
 }
-@keyframes tagPop {
-  from { transform: scale(0.75); opacity: 0; }
-  to   { transform: scale(1); opacity: 1; }
+.tag-pill {
+  display:inline-flex; align-items:center; gap:5px;
+  background:linear-gradient(135deg, rgba(245,97,13,0.18), rgba(245,97,13,0.09));
+  border:1px solid rgba(245,97,13,0.38);
+  color:var(--c-fire); border-radius:100px;
+  padding:5px 12px 5px 14px; font-size:0.78rem; font-weight:500;
+  animation:popIn 0.22s var(--ease-spring);
 }
-.tag-remove { cursor: pointer; opacity: 0.5; font-size: 0.75rem; line-height: 1; transition: opacity 0.15s; padding: 2px; }
-.tag-remove:hover { opacity: 1; }
+@keyframes popIn {
+  from{ opacity:0; transform:scale(0.65); }
+  to  { opacity:1; transform:scale(1); }
+}
+.tag-x {
+  width:15px; height:15px; border-radius:50%;
+  background:rgba(245,97,13,0.22);
+  display:flex; align-items:center; justify-content:center;
+  font-size:0.62rem; cursor:pointer; flex-shrink:0;
+  transition:background 0.15s ease;
+}
+.tag-x:hover { background:rgba(245,97,13,0.48); }
 
-.presets { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
+.chip-cloud { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:12px; }
 .chip {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 100px;
-  padding: 6px 14px; font-size: 0.8rem; cursor: pointer; transition: all 0.18s; color: var(--muted);
+  background:var(--c-faint); border:1.5px solid var(--c-border);
+  border-radius:100px; padding:7px 14px;
+  font-size:0.8rem; font-weight:500; cursor:pointer;
+  transition:all 0.18s var(--ease-spring);
+  user-select:none; -webkit-tap-highlight-color:transparent;
 }
-.chip:hover { border-color: var(--border-2); color: var(--text); background: var(--surface-2); }
-.chip.on { background: rgba(255,77,28,0.1); border-color: rgba(255,77,28,0.35); color: var(--accent-2); }
+.chip:hover { border-color:rgba(245,97,13,0.38); transform:scale(1.04); }
+.chip.on {
+  background:var(--c-fire-dim); border-color:rgba(245,97,13,0.6);
+  color:var(--c-fire); transform:scale(1.05);
+}
 
-.add-row { display: flex; gap: 8px; }
-.add-row input { flex: 1; }
+.custom-row { display:flex; gap:8px; }
+.custom-row input { flex:1; }
 .btn-add {
-  background: var(--surface); border: 1px solid var(--border); color: var(--muted);
-  padding: 0 18px; border-radius: 14px; cursor: pointer;
-  font-size: 0.88rem; font-family: 'Instrument Sans', sans-serif; font-weight: 500;
-  transition: all 0.18s; white-space: nowrap;
+  background:var(--c-faint); border:1.5px solid var(--c-border);
+  color:var(--c-text); padding:0 18px; border-radius:var(--radius-md);
+  cursor:pointer; font-family:'Outfit', sans-serif;
+  font-size:0.86rem; font-weight:500; white-space:nowrap;
+  transition:all 0.2s ease; height:44px;
 }
-.btn-add:hover { border-color: var(--accent); color: var(--accent); background: var(--glow); }
+.btn-add:hover { border-color:var(--c-fire); color:var(--c-fire); }
 
-.divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; }
-.divider-line { flex: 1; height: 1px; background: var(--border); }
-.divider-text { font-size: 0.75rem; color: var(--dim); }
+/* ─── Mode cards ─────────────────────────────────────────────── */
+.mode-grid {
+  display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:22px;
+}
+.mode-card {
+  background:var(--c-faint); border:1.5px solid var(--c-border);
+  border-radius:var(--radius-md); padding:16px 14px; text-align:center;
+  cursor:pointer; position:relative; overflow:hidden;
+  transition:all 0.22s var(--ease-spring);
+  -webkit-tap-highlight-color:transparent;
+}
+.mode-card::before {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(135deg, var(--c-fire-dim), transparent);
+  opacity:0; transition:opacity 0.3s ease;
+}
+.mode-card.on { border-color:rgba(245,97,13,0.6); background:var(--c-fire-dim); }
+.mode-card.on::before { opacity:1; }
+.mode-card:hover:not(.on) { border-color:rgba(245,97,13,0.28); transform:translateY(-2px); }
+.mode-check {
+  position:absolute; top:8px; right:9px;
+  width:17px; height:17px; border-radius:50%;
+  background:var(--c-fire);
+  display:flex; align-items:center; justify-content:center;
+  font-size:0.58rem; font-weight:700;
+  opacity:0; transform:scale(0);
+  transition:all 0.22s var(--ease-spring);
+}
+.mode-card.on .mode-check { opacity:1; transform:scale(1); }
+.mode-icon { font-size:1.8rem; display:block; margin-bottom:7px; position:relative; z-index:1; }
+.mode-title { font-size:0.84rem; font-weight:600; position:relative; z-index:1; }
+.mode-desc { font-size:0.7rem; color:var(--c-muted); margin-top:3px; position:relative; z-index:1; line-height:1.4; }
 
-/* ── Connection grid ─────────────────────────────────────────────────── */
-.conn-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; }
-.conn-opt {
-  background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px;
-  padding: 20px 14px; text-align: center; cursor: pointer; transition: all 0.22s; position: relative; overflow: hidden;
+/* ─── Radius ─────────────────────────────────────────────────── */
+.radius-hero {
+  text-align:center; padding:18px 20px; margin-bottom:18px;
+  background:var(--c-faint); border:1px solid var(--c-border);
+  border-radius:var(--radius-lg); position:relative; overflow:hidden;
 }
-.conn-opt::before {
-  content: ''; position: absolute; inset: 0;
-  background: radial-gradient(circle at 50% 0%, rgba(255,77,28,0.12), transparent 70%);
-  opacity: 0; transition: opacity 0.22s;
+.radius-hero::before {
+  content:''; position:absolute;
+  width:240px; height:240px; border-radius:50%;
+  background:radial-gradient(circle, rgba(245,97,13,0.1) 0%, transparent 70%);
+  top:50%; left:50%; transform:translate(-50%,-50%);
+  pointer-events:none;
 }
-.conn-opt:hover { border-color: var(--border-2); transform: translateY(-2px); }
-.conn-opt:hover::before { opacity: 1; }
-.conn-opt.on { border-color: var(--accent); background: rgba(255,77,28,0.07); }
-.conn-opt.on::before { opacity: 1; }
-.conn-emoji { font-size: 1.75rem; display: block; margin-bottom: 8px; }
-.conn-label { font-size: 0.82rem; font-weight: 500; color: var(--muted); }
-.conn-opt.on .conn-label { color: var(--text); }
-.conn-check {
-  position: absolute; top: 10px; right: 10px;
-  width: 18px; height: 18px; border-radius: 50%; background: var(--accent);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.6rem; color: white; opacity: 0;
-  transform: scale(0.5); transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1);
+.radius-num {
+  font-family:'Playfair Display', serif;
+  font-size:clamp(2.5rem,6vw,4rem);
+  font-weight:900; color:var(--c-fire); line-height:1;
+  display:block; position:relative; z-index:1;
+  transition:all 0.15s var(--ease-spring);
 }
-.conn-opt.on .conn-check { opacity: 1; transform: scale(1); }
-
-/* ── Radius ──────────────────────────────────────────────────────────── */
-.radius-hero { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
-.radius-num { font-family: 'Instrument Serif', serif; font-size: 3.5rem; line-height: 1; color: var(--accent); letter-spacing: -2px; }
-.radius-unit { font-size: 1rem; color: var(--muted); font-weight: 500; }
-.radius-caption { font-size: 0.8rem; color: var(--dim); margin-bottom: 16px; }
+.radius-unit { font-size:1rem; font-weight:400; color:var(--c-muted); margin-left:5px; }
+.radius-sub { font-size:0.76rem; color:var(--c-muted); margin-top:4px; position:relative; z-index:1; }
 
 input[type="range"] {
-  width: 100%; -webkit-appearance: none;
-  height: 3px; border-radius: 2px; background: var(--border); outline: none; cursor: pointer;
+  width:100%; -webkit-appearance:none; appearance:none;
+  height:5px; border-radius:3px; background:var(--c-border); outline:none; cursor:pointer;
 }
 input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
-  background: var(--text); border: 3px solid var(--accent); cursor: pointer;
-  box-shadow: 0 0 0 4px rgba(255,77,28,0.12), 0 2px 8px rgba(0,0,0,0.4);
-  transition: transform 0.15s, box-shadow 0.15s;
+  -webkit-appearance:none;
+  width:22px; height:22px; border-radius:50%;
+  background:var(--c-fire); cursor:pointer;
+  box-shadow:0 0 0 4px rgba(245,97,13,0.2), 0 2px 8px rgba(0,0,0,0.4);
+  transition:box-shadow 0.2s ease, transform 0.15s ease;
 }
 input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
-  box-shadow: 0 0 0 6px rgba(255,77,28,0.15), 0 2px 8px rgba(0,0,0,0.4);
+  box-shadow:0 0 0 7px rgba(245,97,13,0.2), 0 2px 12px rgba(0,0,0,0.5);
+  transform:scale(1.1);
 }
-.range-labels { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--dim); margin-top: 10px; }
+.range-labels {
+  display:flex; justify-content:space-between;
+  font-size:0.68rem; color:var(--c-muted); margin-top:5px;
+}
 
-/* ── Buttons ─────────────────────────────────────────────────────────── */
-.actions { margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }
-.btn-primary {
-  width: 100%; padding: 15px 24px; background: var(--accent); color: #fff; border: none;
-  border-radius: 100px; font-family: 'Instrument Sans', sans-serif; font-size: 0.95rem;
-  font-weight: 600; cursor: pointer; letter-spacing: 0.2px;
-  transition: all 0.28s cubic-bezier(0.34,1.56,0.64,1); position: relative; overflow: hidden;
+/* ─── Visibility toggle ──────────────────────────────────────── */
+.vis-row {
+  display:flex; align-items:center; justify-content:space-between;
+  background:var(--c-faint); border:1.5px solid var(--c-border);
+  border-radius:var(--radius-md); padding:15px 17px; margin-bottom:8px;
 }
-.btn-primary::after {
-  content: ''; position: absolute; inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.12), transparent 60%); pointer-events: none;
+.vis-text .vis-label { font-size:0.9rem; font-weight:500; }
+.vis-text .vis-sub { font-size:0.73rem; color:var(--c-muted); margin-top:2px; }
+.toggle-wrap { position:relative; width:46px; height:26px; flex-shrink:0; }
+.toggle-wrap input { opacity:0; width:0; height:0; position:absolute; }
+.toggle-track {
+  position:absolute; inset:0; background:rgba(255,248,235,0.12);
+  border-radius:100px; cursor:pointer;
+  border:1px solid var(--c-border);
+  transition:background 0.28s ease;
 }
-.btn-primary:hover { transform: translateY(-2px) scale(1.01); box-shadow: 0 10px 36px rgba(255,77,28,0.38); }
-.btn-primary:active { transform: scale(0.99); }
-.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
-.btn-ghost {
-  width: 100%; padding: 13px 24px; background: transparent;
-  border: 1px solid var(--border); color: var(--muted); border-radius: 100px;
-  font-family: 'Instrument Sans', sans-serif; font-size: 0.88rem; cursor: pointer; transition: all 0.2s;
+.toggle-wrap input:checked + .toggle-track { background:var(--c-fire); border-color:var(--c-fire); }
+.toggle-track::after {
+  content:''; position:absolute;
+  width:20px; height:20px; border-radius:50%;
+  background:#fff; top:2px; left:2px;
+  transition:transform 0.28s var(--ease-spring);
+  box-shadow:0 1px 4px rgba(0,0,0,0.3);
 }
-.btn-ghost:hover { border-color: var(--border-2); color: var(--text); }
+.toggle-wrap input:checked + .toggle-track::after { transform:translateX(20px); }
 
-/* ── Error ───────────────────────────────────────────────────────────── */
-.error-box {
-  display: none; background: rgba(255,77,28,0.08); border: 1px solid rgba(255,77,28,0.25);
-  color: var(--accent-2); border-radius: 12px; padding: 12px 16px;
-  font-size: 0.85rem; margin-bottom: 14px; line-height: 1.5;
+/* ─── Error banner ───────────────────────────────────────────── */
+.error-banner {
+  background:rgba(245,97,13,0.09); border:1px solid rgba(245,97,13,0.32);
+  color:var(--c-fire); border-radius:var(--radius-sm);
+  padding:10px 14px; font-size:0.82rem; margin-bottom:14px;
+  display:none; align-items:center; gap:8px; line-height:1.5;
+}
+.error-banner.show { display:flex; animation:slideDown 0.25s var(--ease-out); }
+@keyframes slideDown {
+  from{ opacity:0; transform:translateY(-6px); }
+  to  { opacity:1; transform:translateY(0); }
+}
+
+/* ─── Nav bar ────────────────────────────────────────────────── */
+.panel-nav {
+  padding:18px clamp(22px,5vw,50px) clamp(20px,4vw,34px);
+  border-top:1px solid var(--c-border);
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  background:var(--c-panel);
+}
+.btn-back {
+  display:inline-flex; align-items:center; gap:5px;
+  background:transparent; border:1.5px solid var(--c-border);
+  color:var(--c-muted); padding:12px 20px; border-radius:100px;
+  cursor:pointer; font-family:'Outfit', sans-serif;
+  font-size:0.86rem; font-weight:500; white-space:nowrap;
+  transition:all 0.2s ease;
+}
+.btn-back:hover { border-color:rgba(255,248,235,0.22); color:var(--c-text); }
+.btn-next {
+  flex:1; max-width:320px; margin-left:auto;
+  background:var(--c-fire); color:#fff; border:none;
+  border-radius:100px; padding:14px 28px;
+  font-family:'Outfit', sans-serif; font-size:0.93rem; font-weight:600;
+  cursor:pointer; position:relative; overflow:hidden;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  transition:all 0.28s var(--ease-spring);
+}
+.btn-next::before {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(135deg, rgba(255,255,255,0.14), transparent);
+  opacity:0; transition:opacity 0.25s ease;
+}
+.btn-next:hover::before { opacity:1; }
+.btn-next:hover { transform:scale(1.025) translateY(-1px); box-shadow:0 14px 38px rgba(245,97,13,0.42); }
+.btn-next:disabled { opacity:0.4; cursor:not-allowed; transform:none; box-shadow:none; }
+.arrow { transition:transform 0.25s var(--ease-spring); }
+.btn-next:hover .arrow { transform:translateX(4px); }
+.btn-spinner {
+  width:16px; height:16px;
+  border:2px solid rgba(255,255,255,0.3); border-top-color:#fff;
+  border-radius:50%; animation:spin 0.7s linear infinite; display:none;
+}
+@keyframes spin { to{ transform:rotate(360deg); } }
+.btn-next.loading .btn-spinner { display:block; }
+.btn-next.loading .btn-label, .btn-next.loading .arrow { display:none; }
+
+/* scrollbar */
+.step-slide::-webkit-scrollbar { width:3px; }
+.step-slide::-webkit-scrollbar-track { background:transparent; }
+.step-slide::-webkit-scrollbar-thumb { background:var(--c-border); border-radius:2px; }
+
+@media(max-width:760px){
+  .step-slide { padding:20px 18px; }
+  .panel-nav  { padding:14px 18px; }
+  .mode-grid  { gap:8px; }
+  .mode-card  { padding:13px 10px; }
+  .mode-icon  { font-size:1.5rem; }
+}
+@media(max-width:360px){
+  .btn-back { padding:12px 13px; font-size:0.8rem; }
 }
 </style>
 </head>
 <body>
+<div class="shell">
 
-<div class="scene">
-  <div class="orb orb-1"></div>
-  <div class="orb orb-2"></div>
-  <div class="orb orb-3"></div>
-</div>
-<div class="grid"></div>
+  <!-- ─── LEFT PANEL ─────────────────────────────────── -->
+  <div class="panel-left">
+    <div class="logo">Near<em>Me</em></div>
 
-<div class="wrapper">
-
-  <div class="logo">
-    <div class="logo-mark">N</div>
-    <div class="logo-text">Near<em>Me</em></div>
-  </div>
-
-  <div class="progress">
-    <div class="prog-step">
-      <div class="prog-num active" id="pn-0"><span>1</span></div>
-    </div>
-    <div class="prog-line" id="pl-0"></div>
-    <div class="prog-step">
-      <div class="prog-num" id="pn-1"><span>2</span></div>
-    </div>
-    <div class="prog-line" id="pl-1"></div>
-    <div class="prog-step">
-      <div class="prog-num" id="pn-2"><span>3</span></div>
-    </div>
-  </div>
-
-  <div class="error-box" id="errorMsg"></div>
-
-  <!-- Step 0 -->
-  <div class="step active" id="step-0">
-    <div class="eyebrow">Welcome</div>
-    <h2>Let's build your <em>profile</em></h2>
-    <p class="sub">Two quick steps and you'll be visible to people around you. Ready in under two minutes.</p>
-    <div class="profile-card">
-      <img id="userAvatar" src="" alt="avatar" class="avatar"
-        onerror="this.src='data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 52 52\'><rect width=\'52\' height=\'52\' rx=\'14\' fill=\'%23222\'/><text x=\'50%25\' y=\'54%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' font-size=\'22\' fill=\'%23888\'>?</text></svg>'">
-      <div style="min-width:0">
-        <div class="card-name" id="userName">Loading…</div>
-        <div class="card-email" id="userEmail"></div>
-      </div>
-      <div class="card-badge">New</div>
-    </div>
-    <div class="actions">
-      <button class="btn-primary" onclick="nextStep()">Get Started →</button>
-    </div>
-  </div>
-
-  <!-- Step 1 -->
-  <div class="step" id="step-1">
-    <div class="eyebrow">Step 1 of 2</div>
-    <h2>Who <em>are</em> you?</h2>
-    <p class="sub">A short bio and your interests help people decide if they want to connect.</p>
-    <div class="field">
-      <label class="field-label">Short Bio</label>
-      <textarea id="bio" placeholder="I'm a designer who loves cycling, specialty coffee, and building random weekend projects…"></textarea>
-    </div>
-    <div class="field">
-      <label class="field-label">Interests</label>
-      <div class="tags-selected" id="selectedInterests"></div>
-      <div class="presets" id="presetChips"></div>
-      <div class="divider">
-        <div class="divider-line"></div>
-        <div class="divider-text">or add your own</div>
-        <div class="divider-line"></div>
-      </div>
-      <div class="add-row">
-        <input type="text" id="customInterest" placeholder="e.g. Bouldering, Jazz, Sourdough…" maxlength="30">
-        <button class="btn-add" onclick="addCustomInterest()">Add</button>
+    <div class="artwork">
+      <div class="artwork-inner" id="artworkInner">
+        <span class="artwork-glyph" id="artGlyph">👋</span>
+        <div class="artwork-label" id="artLabel">You're <span>almost</span><br>on the map</div>
+        <p class="artwork-sub" id="artSub">Three quick steps to let the right people find you.</p>
       </div>
     </div>
-    <div class="actions">
-      <button class="btn-primary" onclick="nextStep()">Continue →</button>
-      <button class="btn-ghost" onclick="prevStep()">← Back</button>
-    </div>
+
+    <div class="step-counter">Step <strong id="stepNumDisplay">1</strong> of 3</div>
   </div>
 
-  <!-- Step 2 -->
-  <div class="step" id="step-2">
-    <div class="eyebrow">Step 2 of 2</div>
-    <h2>What are you <em>here</em> for?</h2>
-    <p class="sub">Set your intent and search radius. You can change both anytime from settings.</p>
-    <div class="field">
-      <label class="field-label">I'm looking for</label>
-      <div class="conn-grid" id="lookingGrid">
-        <div class="conn-opt on" data-value="all" onclick="selectLooking(this)">
-          <div class="conn-check">✓</div>
-          <span class="conn-emoji">🌍</span>
-          <span class="conn-label">Everything</span>
+  <!-- ─── RIGHT PANEL ────────────────────────────────── -->
+  <div class="panel-right">
+    <div class="progress-bar" id="progressBar" style="width:33.33%"></div>
+
+    <div class="steps-viewport">
+
+      <!-- Step 0 — Who are you ──────────────────────── -->
+      <div class="step-slide active" id="slide-0">
+        <div class="step-eyebrow">Step 01</div>
+        <h2 class="step-title">Let's meet you</h2>
+        <p class="step-desc">Your name and photo come from Google. Write a quick bio so people get a feel for you before saying hi.</p>
+
+        <div class="error-banner" id="err-0">⚠ <span id="err-0-msg"></span></div>
+
+        <div class="welcome-card">
+          <div class="avatar-wrap">
+            <img id="userAvatar" src="" alt="You" class="welcome-avatar">
+            <div class="avatar-ring"></div>
+          </div>
+          <div class="welcome-info">
+            <div class="welcome-name" id="userName">Loading…</div>
+            <div class="welcome-email" id="userEmail"></div>
+            <span class="new-badge">New Member</span>
+          </div>
         </div>
-        <div class="conn-opt" data-value="friendship" onclick="selectLooking(this)">
-          <div class="conn-check">✓</div>
-          <span class="conn-emoji">👥</span>
-          <span class="conn-label">Friendship</span>
-        </div>
-        <div class="conn-opt" data-value="networking" onclick="selectLooking(this)">
-          <div class="conn-check">✓</div>
-          <span class="conn-emoji">💼</span>
-          <span class="conn-label">Networking</span>
-        </div>
-        <div class="conn-opt" data-value="collaboration" onclick="selectLooking(this)">
-          <div class="conn-check">✓</div>
-          <span class="conn-emoji">🚀</span>
-          <span class="conn-label">Collab</span>
-        </div>
-      </div>
-    </div>
-    <div class="field">
-      <label class="field-label">Search Radius</label>
-      <div class="radius-hero">
-        <div class="radius-num" id="radiusNum">5</div>
-        <div class="radius-unit" id="radiusUnit">km</div>
-      </div>
-      <div class="radius-caption">People within this distance will appear on your map</div>
-      <input type="range" id="radiusSlider" min="500" max="50000" step="500" value="5000" oninput="updateRadius(this.value)">
-      <div class="range-labels"><span>500 m</span><span>50 km</span></div>
-    </div>
-    <div class="actions">
-      <button class="btn-primary" onclick="saveProfile()" id="saveBtn">Save &amp; Open Map 🗺️</button>
-      <button class="btn-ghost" onclick="prevStep()">← Back</button>
-    </div>
-  </div>
 
+        <div class="field">
+          <label class="field-label">Short bio <em>*</em></label>
+          <div class="input-wrap">
+            <textarea id="bio" maxlength="200"
+              placeholder="A line about who you are — what you're into, what you're building, how you spend your time…"
+              oninput="charCount(this,'bio-ct',200)"></textarea>
+            <span class="char-count" id="bio-ct">0 / 200</span>
+          </div>
+        </div>
+
+        <div class="step-spacer"></div>
+      </div>
+
+      <!-- Step 1 — Interests ────────────────────────── -->
+      <div class="step-slide" id="slide-1">
+        <div class="step-eyebrow">Step 02</div>
+        <h2 class="step-title">What are you into?</h2>
+        <p class="step-desc">Pick at least 2 interests. They help NearMe surface the right people — and give others a reason to tap your profile.</p>
+
+        <div class="error-banner" id="err-1">⚠ <span id="err-1-msg"></span></div>
+
+        <div class="field">
+          <label class="field-label">Your interests <em>*</em></label>
+          <div class="tags-bar" id="tagsBar"></div>
+          <div class="chip-cloud" id="chipCloud"></div>
+          <div class="custom-row">
+            <input type="text" id="customInput" placeholder="Type something custom…" maxlength="28"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();addCustom();}">
+            <button class="btn-add" onclick="addCustom()">+ Add</button>
+          </div>
+        </div>
+
+        <div class="step-spacer"></div>
+      </div>
+
+      <!-- Step 2 — Vibe + radius ─────────────────────── -->
+      <div class="step-slide" id="slide-2">
+        <div class="step-eyebrow">Step 03</div>
+        <h2 class="step-title">Set your vibe</h2>
+        <p class="step-desc">Tell people what kind of connection you're after and how wide you want to cast your net.</p>
+
+        <div class="error-banner" id="err-2">⚠ <span id="err-2-msg"></span></div>
+
+        <div class="field">
+          <label class="field-label">I'm here for <em>*</em></label>
+          <div class="mode-grid">
+            <div class="mode-card on" data-value="all" onclick="selectMode(this)">
+              <div class="mode-check">✓</div>
+              <span class="mode-icon">🌍</span>
+              <div class="mode-title">Open to all</div>
+              <div class="mode-desc">No filter — meet anyone</div>
+            </div>
+            <div class="mode-card" data-value="friendship" onclick="selectMode(this)">
+              <div class="mode-check">✓</div>
+              <span class="mode-icon">👥</span>
+              <div class="mode-title">Friendship</div>
+              <div class="mode-desc">Casual social connections</div>
+            </div>
+            <div class="mode-card" data-value="networking" onclick="selectMode(this)">
+              <div class="mode-check">✓</div>
+              <span class="mode-icon">💼</span>
+              <div class="mode-title">Networking</div>
+              <div class="mode-desc">Professionals & careers</div>
+            </div>
+            <div class="mode-card" data-value="collaboration" onclick="selectMode(this)">
+              <div class="mode-check">✓</div>
+              <span class="mode-icon">🚀</span>
+              <div class="mode-title">Collaboration</div>
+              <div class="mode-desc">Build things together</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field-label">Search radius</label>
+          <div class="radius-hero">
+            <span class="radius-num" id="radiusNum">5<span class="radius-unit">km</span></span>
+            <div class="radius-sub" id="radiusSub">People within 5 kilometres</div>
+          </div>
+          <input type="range" id="radiusSlider" min="500" max="50000" step="500" value="5000"
+            oninput="updateRadius(this.value)" style="margin:14px 0 4px">
+          <div class="range-labels"><span>500m</span><span>10km</span><span>25km</span><span>50km</span></div>
+        </div>
+
+        <div class="field">
+          <label class="field-label">Visibility</label>
+          <div class="vis-row">
+            <div class="vis-text">
+              <div class="vis-label">Show me on the map</div>
+              <div class="vis-sub">You can toggle this anytime in settings</div>
+            </div>
+            <label class="toggle-wrap">
+              <input type="checkbox" id="visToggle" checked>
+              <div class="toggle-track"></div>
+            </label>
+          </div>
+        </div>
+
+        <div class="step-spacer"></div>
+      </div>
+
+    </div><!-- /steps-viewport -->
+
+    <!-- Nav -->
+    <div class="panel-nav">
+      <button class="btn-back" id="btnBack" onclick="prevStep()" style="display:none">← Back</button>
+      <button class="btn-next" id="btnNext" onclick="advance()">
+        <span class="btn-label">Continue</span>
+        <span class="arrow">→</span>
+        <div class="btn-spinner"></div>
+      </button>
+    </div>
+
+  </div>
 </div>
 
 <script>
-  let currentStep       = 0;
-  let selectedInterests = [];
-  let lookingFor        = 'all';
+// ── State ─────────────────────────────────────────────────────
+let step = 0;
+let interests = [];
+let lookingFor = 'all';
 
-  const presets = [
-    '☕ Coffee','📚 Books','🎵 Music','🎮 Gaming','🏃 Fitness',
-    '✈️ Travel','🍕 Foodie','🎨 Art','💻 Tech','📸 Photography',
-    '🌿 Nature','🎬 Movies','🧘 Yoga','🎸 Music-Maker','🌙 Nightlife'
-  ];
+const PRESETS = [
+  '☕ Coffee','📚 Books','🎵 Music','🎮 Gaming',
+  '🏃 Fitness','✈️ Travel','🍕 Food','🎨 Art',
+  '💻 Tech','📸 Photography','🌿 Nature','🎬 Films',
+  '🧘 Wellness','🎸 Guitar','🌙 Nightlife','🐾 Pets',
+  '🏄 Outdoors','🍷 Wine','🎯 Sport','✍️ Writing'
+];
 
-  // ── Guards ─────────────────────────────────────────────────────────────────
-  let userLoaded    = false;   // has loadUser completed (success or failure)?
-  let pendingStep   = false;   // did user click before user loaded?
+const ARTWORK = [
+  { g:'👋', t:'You\'re <span>almost</span><br>on the map',    s:'Three quick steps to let the right people find you.' },
+  { g:'✨', t:'Shared interests<br>spark <span>real</span> talks', s:'People connect fastest over things they both love.' },
+  { g:'📍', t:'Your <span>radius,</span><br>your rules',      s:'From the café around the corner to across the city.' },
+];
 
-  async function loadUser() {
-    try {
-      const res = await fetch('/auth/me', { credentials: 'include' });
+// ── Boot ──────────────────────────────────────────────────────
+async function boot() {
+  try {
+    const res = await fetch('/auth/me');
+    if (!res.ok) { window.location.href='/'; return; }
+    const u = await res.json();
 
-      // Only redirect if clearly unauthenticated
-      if (res.status === 401 || res.status === 403) {
-        window.location.href = '/';
-        return;
-      }
+    document.getElementById('userAvatar').src = u.avatar || '';
+    document.getElementById('userAvatar').onerror = function(){
+      this.src = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'><rect width='60' height='60' fill='%231c1916'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='26' fill='%23f5610d' font-family='serif'>${(u.name||'?')[0].toUpperCase()}</text></svg>`;
+    };
+    document.getElementById('userName').textContent  = u.name  || 'You';
+    document.getElementById('userEmail').textContent = u.email || '';
 
-      if (!res.ok) {
-        console.warn('Could not load user, status:', res.status);
-        document.getElementById('userName').textContent = 'Welcome!';
-        return;
-      }
+    if (u.bio)           { document.getElementById('bio').value = u.bio; charCount(document.getElementById('bio'),'bio-ct',200); }
+    if (u.interests?.length) { interests = [...u.interests]; }
+    if (u.lookingFor)    { lookingFor = u.lookingFor; syncModeCards(); }
+    if (u.searchRadius)  { updateRadius(u.searchRadius, true); }
 
-      const user = await res.json();
-      if (user.avatar) document.getElementById('userAvatar').src = user.avatar;
-      document.getElementById('userName').textContent  = user.name  || 'Welcome!';
-      document.getElementById('userEmail').textContent = user.email || '';
-      if (user.bio || user.interests?.length) document.querySelector('.card-badge').textContent = 'Editing';
-      if (user.bio) document.getElementById('bio').value = user.bio;
-      if (user.interests?.length) { selectedInterests = [...user.interests]; renderTags(); }
-      if (user.lookingFor) {
-        lookingFor = user.lookingFor;
-        document.querySelectorAll('.conn-opt').forEach(o =>
-          o.classList.toggle('on', o.dataset.value === lookingFor)
-        );
-      }
-      if (user.searchRadius) {
-        document.getElementById('radiusSlider').value = user.searchRadius;
-        updateRadius(user.searchRadius);
-      }
-    } catch (err) {
-      console.error('loadUser error:', err);
-      document.getElementById('userName').textContent = 'Welcome!';
-    } finally {
-      userLoaded = true;
-      // If user clicked Get Started while we were loading, advance now
-      if (pendingStep) { pendingStep = false; doNextStep(); }
-    }
-  }
-
-  function renderPresets() {
-    document.getElementById('presetChips').innerHTML = presets.map(p =>
-      `<div class="chip ${selectedInterests.includes(p) ? 'on' : ''}" onclick="togglePreset('${p}',this)">${p}</div>`
-    ).join('');
-  }
-
-  function renderTags() {
-    document.getElementById('selectedInterests').innerHTML = selectedInterests.map(i =>
-      `<span class="tag">${i}<span class="tag-remove" onclick="removeInterest('${i}')">✕</span></span>`
-    ).join('');
-  }
-
-  function togglePreset(interest, el) {
-    const idx = selectedInterests.indexOf(interest);
-    if (idx > -1) { selectedInterests.splice(idx, 1); el.classList.remove('on'); }
-    else           { selectedInterests.push(interest);  el.classList.add('on'); }
     renderTags();
-  }
+  } catch { window.location.href='/'; }
+}
 
-  function removeInterest(interest) {
-    selectedInterests = selectedInterests.filter(i => i !== interest);
+// ── Progress ──────────────────────────────────────────────────
+function syncUI() {
+  document.getElementById('progressBar').style.width = ((step+1)/3*100) + '%';
+  document.getElementById('stepNumDisplay').textContent = step + 1;
+  document.getElementById('btnBack').style.display = step > 0 ? 'inline-flex' : 'none';
+  const lbl = document.querySelector('.btn-label');
+  if (lbl) lbl.textContent = step === 2 ? 'Launch 🗺️' : 'Continue';
+  const arr = document.querySelector('.arrow');
+  if (arr) arr.style.display = step === 2 ? 'none' : '';
+}
+
+// ── Artwork swap ──────────────────────────────────────────────
+function swapArtwork(i) {
+  const el = document.getElementById('artworkInner');
+  el.classList.add('leaving');
+  setTimeout(() => {
+    const a = ARTWORK[i];
+    document.getElementById('artGlyph').textContent = a.g;
+    document.getElementById('artLabel').innerHTML   = a.t;
+    document.getElementById('artSub').textContent   = a.s;
+    el.classList.remove('leaving');
+  }, 320);
+}
+
+// ── Navigation ────────────────────────────────────────────────
+function goTo(next) {
+  const cur = document.getElementById(`slide-${step}`);
+  cur.classList.remove('active');
+  cur.classList.add('exiting');
+  setTimeout(() => cur.classList.remove('exiting'), 420);
+
+  step = next;
+  const nxt = document.getElementById(`slide-${step}`);
+  nxt.classList.add('active');
+  nxt.scrollTop = 0;
+
+  syncUI();
+  swapArtwork(step);
+  if (step === 1) renderChips();
+}
+function prevStep() { if (step > 0) goTo(step - 1); }
+function advance()  { if (validate(step)) { step < 2 ? goTo(step+1) : save(); } }
+
+// ── Validation ────────────────────────────────────────────────
+function showErr(s, msg) {
+  const b = document.getElementById(`err-${s}`);
+  document.getElementById(`err-${s}-msg`).textContent = msg;
+  b.classList.add('show');
+  clearTimeout(b._t);
+  b._t = setTimeout(() => b.classList.remove('show'), 4500);
+}
+function validate(s) {
+  if (s === 0) {
+    const v = document.getElementById('bio').value.trim();
+    if (!v)       { showErr(0,'Please add a short bio.'); return false; }
+    if (v.length < 10) { showErr(0,'Bio should be at least 10 characters.'); return false; }
+  }
+  if (s === 1 && interests.length < 2) {
+    showErr(1,'Pick at least 2 interests to continue.'); return false;
+  }
+  return true;
+}
+
+// ── Char count ────────────────────────────────────────────────
+function charCount(el, id, max) {
+  const n = el.value.length;
+  const c = document.getElementById(id);
+  c.textContent = `${n} / ${max}`;
+  c.classList.toggle('warn', n > max * 0.85);
+}
+
+// ── Interests ─────────────────────────────────────────────────
+function renderChips() {
+  document.getElementById('chipCloud').innerHTML = PRESETS.map(p => {
+    const safe = p.replace(/'/g, "\\'");
+    return `<div class="chip${interests.includes(p)?' on':''}" onclick="toggleChip(this,'${safe}')">${p}</div>`;
+  }).join('');
+}
+function renderTags() {
+  const bar = document.getElementById('tagsBar');
+  if (!interests.length) {
+    bar.innerHTML = '<span style="color:var(--c-muted);font-size:0.78rem;padding:3px 0">Nothing selected yet</span>';
+  } else {
+    bar.innerHTML = interests.map(i => {
+      const safe = i.replace(/'/g, "\\'");
+      return `<span class="tag-pill">${i}<span class="tag-x" onclick="removeTag('${safe}')">✕</span></span>`;
+    }).join('');
+  }
+}
+function toggleChip(el, val) {
+  const idx = interests.indexOf(val);
+  if (idx > -1) { interests.splice(idx,1); el.classList.remove('on'); }
+  else           { interests.push(val);    el.classList.add('on'); }
+  renderTags();
+}
+function removeTag(val) {
+  interests = interests.filter(i => i !== val);
+  renderTags();
+  document.querySelectorAll('.chip').forEach(c => { if (c.textContent.trim()===val) c.classList.remove('on'); });
+}
+function addCustom() {
+  const inp = document.getElementById('customInput');
+  const v   = inp.value.trim();
+  if (v && !interests.includes(v) && interests.length < 20) {
+    interests.push(v);
     renderTags();
-    document.querySelectorAll('.chip').forEach(c => {
-      if (c.textContent.trim() === interest) c.classList.remove('on');
+    renderChips();
+    inp.value = '';
+    inp.focus();
+  }
+}
+
+// ── Mode ──────────────────────────────────────────────────────
+function selectMode(el) {
+  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('on'));
+  el.classList.add('on');
+  lookingFor = el.dataset.value;
+}
+function syncModeCards() {
+  document.querySelectorAll('.mode-card').forEach(c =>
+    c.classList.toggle('on', c.dataset.value === lookingFor));
+}
+
+// ── Radius ────────────────────────────────────────────────────
+function updateRadius(val, silent) {
+  if (!silent) document.getElementById('radiusSlider').value = val;
+  const v = parseInt(val);
+  const txt = v < 1000
+    ? `${v}<span class="radius-unit">m</span>`
+    : `${(v/1000).toFixed(v<2000?1:0)}<span class="radius-unit">km</span>`;
+  document.getElementById('radiusNum').innerHTML = txt;
+  const label = v < 1000 ? `${v} metres` : `${(v/1000).toFixed(1)} kilometres`;
+  document.getElementById('radiusSub').textContent = `People within ${label}`;
+}
+
+// ── Save ──────────────────────────────────────────────────────
+async function save() {
+  const btn = document.getElementById('btnNext');
+  btn.disabled = true;
+  btn.classList.add('loading');
+  try {
+    const r = await fetch('/api/users/onboarding', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({
+        bio:          document.getElementById('bio').value.trim(),
+        interests,
+        lookingFor,
+        searchRadius: parseInt(document.getElementById('radiusSlider').value),
+        isVisible:    document.getElementById('visToggle').checked
+      })
     });
+    if (!r.ok) { const d = await r.json().catch(()=>({})); throw new Error(d.error||'Server error'); }
+    window.location.href = '/app';
+  } catch(e) {
+    showErr(2, e.message || 'Failed to save. Please try again.');
+    btn.disabled = false;
+    btn.classList.remove('loading');
   }
+}
 
-  function addCustomInterest() {
-    const input = document.getElementById('customInterest');
-    const val   = input.value.trim();
-    if (val && !selectedInterests.includes(val)) {
-      selectedInterests.push(val);
-      renderTags();
-      input.value = '';
-    }
-  }
-
-  document.getElementById('customInterest')?.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); addCustomInterest(); }
-  });
-
-  function selectLooking(el) {
-    document.querySelectorAll('.conn-opt').forEach(o => o.classList.remove('on'));
-    el.classList.add('on');
-    lookingFor = el.dataset.value;
-  }
-
-  function updateRadius(val) {
-    const v = parseInt(val);
-    document.getElementById('radiusNum').textContent  = v < 1000 ? v : (v / 1000).toFixed(v < 10000 ? 1 : 0);
-    document.getElementById('radiusUnit').textContent = v < 1000 ? 'm' : 'km';
-  }
-
-  function nextStep() {
-    // If user data hasn't loaded yet, queue the step and show loading state
-    if (!userLoaded) {
-      pendingStep = true;
-      const btn = document.querySelector('#step-0 .btn-primary');
-      if (btn) { btn.textContent = 'Loading…'; btn.disabled = true; }
-      return;
-    }
-    doNextStep();
-  }
-
-  function doNextStep() {
-    try {
-      if (currentStep >= 2) return;
-      const pn = document.getElementById(`pn-${currentStep}`);
-      pn.classList.remove('active'); pn.classList.add('done');
-      document.getElementById(`pl-${currentStep}`)?.classList.add('done');
-      document.getElementById(`step-${currentStep}`).classList.remove('active');
-      currentStep++;
-      document.getElementById(`step-${currentStep}`).classList.add('active');
-      document.getElementById(`pn-${currentStep}`).classList.add('active');
-      if (currentStep === 1) renderPresets();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (err) {
-      console.error('nextStep error:', err);
-    }
-  }
-
-  function prevStep() {
-    if (currentStep <= 0) return;
-    document.getElementById(`step-${currentStep}`).classList.remove('active');
-    document.getElementById(`pn-${currentStep}`).classList.remove('active');
-    currentStep--;
-    document.getElementById(`step-${currentStep}`).classList.add('active');
-    const pn = document.getElementById(`pn-${currentStep}`);
-    pn.classList.remove('done'); pn.classList.add('active');
-    document.getElementById(`pl-${currentStep}`)?.classList.remove('done');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  async function saveProfile() {
-    const btn   = document.getElementById('saveBtn');
-    const errEl = document.getElementById('errorMsg');
-    errEl.style.display = 'none';
-    btn.disabled = true; btn.textContent = 'Saving…';
-    try {
-      const res = await fetch('/api/users/profile', {
-        method: 'PUT', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          bio:          document.getElementById('bio').value.trim(),
-          interests:    selectedInterests,
-          lookingFor,
-          searchRadius: parseInt(document.getElementById('radiusSlider').value),
-          isVisible:    true
-        })
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || `Server error ${res.status}`);
-      }
-      window.location.href = '/app';
-    } catch (err) {
-      errEl.textContent   = err.message || 'Failed to save. Please try again.';
-      errEl.style.display = 'block';
-      btn.disabled        = false;
-      btn.textContent     = 'Save & Open Map 🗺️';
-    }
-  }
-
-  loadUser();
+// ── Init ──────────────────────────────────────────────────────
+syncUI();
+boot();
 </script>
 </body>
 </html>
