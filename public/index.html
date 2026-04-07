@@ -1,387 +1,573 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NearMe — Find people around you</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet" />
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NearMe — find people around you</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    :root {
-      --ink:    #0d0d0d;
-      --paper:  #f5f2eb;
-      --amber:  #e8a020;
-      --rust:   #c44b2b;
-      --sage:   #4a7c59;
-      --muted:  #7a7060;
-      --border: rgba(13,13,13,0.12);
-    }
+  :root {
+    --ink: #1a1a18;
+    --ink-soft: #5a5a55;
+    --ink-faint: #9a9a93;
+    --surface: #f7f6f2;
+    --white: #ffffff;
+    --accent: #2d5a3d;
+    --accent-light: #e8f0eb;
+    --accent-mid: #4a8c5f;
+    --border: rgba(26,26,24,0.1);
+    --radius: 12px;
+  }
 
-    html, body {
-      height: 100%;
-      background: var(--paper);
-      color: var(--ink);
-      font-family: 'DM Sans', sans-serif;
-      font-weight: 300;
-      overflow-x: hidden;
-    }
+  html { scroll-behavior: smooth; }
 
-    /* ── Grain overlay ── */
-    body::before {
-      content: '';
-      position: fixed; inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-      pointer-events: none;
-      z-index: 999;
-    }
+  body {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background: var(--surface);
+    color: var(--ink);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
 
-    /* ── Error banner ── */
-    .error-banner {
-      display: none;
-      background: var(--rust);
-      color: #fff;
-      text-align: center;
-      padding: 10px 20px;
-      font-size: 0.85rem;
-      letter-spacing: 0.02em;
-    }
-    .error-banner.visible { display: block; }
+  /* ── Nav ── */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 2rem;
+    background: rgba(247,246,242,0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
 
-    /* ── Layout ── */
-    .page {
-      min-height: 100vh;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-    }
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.4rem;
+    color: var(--ink);
+    text-decoration: none;
+    letter-spacing: -0.02em;
+  }
 
-    @media (max-width: 768px) {
-      .page { grid-template-columns: 1fr; }
-      .visual { display: none; }
-    }
+  .logo span { color: var(--accent); }
 
-    /* ── Left: Content ── */
-    .content {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      padding: 80px 72px;
-      position: relative;
-      z-index: 1;
-    }
+  .nav-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.5rem 1.2rem;
+    background: var(--ink);
+    color: var(--white);
+    text-decoration: none;
+    border-radius: 100px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: background 0.2s, transform 0.15s;
+  }
+  .nav-cta:hover { background: var(--accent); transform: translateY(-1px); }
 
-    .wordmark {
-      font-family: 'Syne', sans-serif;
-      font-weight: 800;
-      font-size: 1rem;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--ink);
-      margin-bottom: 80px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .wordmark .dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: var(--amber);
-      animation: pulse 2.4s ease-in-out infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.5); opacity: 0.6; }
-    }
+  /* ── Hero ── */
+  .hero {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+    align-items: center;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 6rem 2rem 4rem;
+  }
 
-    .headline {
-      font-family: 'Syne', sans-serif;
-      font-weight: 800;
-      font-size: clamp(3rem, 5vw, 5.5rem);
-      line-height: 0.95;
-      letter-spacing: -0.03em;
-      margin-bottom: 32px;
-      animation: fadeUp 0.8s ease both;
-    }
-    .headline em {
-      font-style: normal;
-      color: var(--rust);
-      display: block;
-    }
+  @media (max-width: 768px) {
+    .hero { grid-template-columns: 1fr; padding: 3rem 1.5rem 2rem; gap: 2.5rem; }
+    .hero-visual { order: -1; }
+  }
 
-    .subline {
-      font-size: 1.05rem;
-      line-height: 1.65;
-      color: var(--muted);
-      max-width: 360px;
-      margin-bottom: 56px;
-      animation: fadeUp 0.8s 0.1s ease both;
-    }
+  .hero-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    background: var(--accent-light);
+    color: var(--accent);
+    border-radius: 100px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-bottom: 1.25rem;
+  }
 
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(20px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
+  .hero-tag::before {
+    content: '';
+    display: block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-mid);
+    animation: pulse 2s infinite;
+  }
 
-    /* ── Google sign-in button ── */
-    .btn-google {
-      display: inline-flex;
-      align-items: center;
-      gap: 14px;
-      background: var(--ink);
-      color: var(--paper);
-      font-family: 'Syne', sans-serif;
-      font-weight: 600;
-      font-size: 0.9rem;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      text-decoration: none;
-      padding: 18px 32px;
-      border: 2px solid var(--ink);
-      cursor: pointer;
-      position: relative;
-      overflow: hidden;
-      transition: color 0.3s, background 0.3s;
-      animation: fadeUp 0.8s 0.2s ease both;
-      width: fit-content;
-    }
-    .btn-google::after {
-      content: '';
-      position: absolute; inset: 0;
-      background: var(--amber);
-      transform: translateX(-100%);
-      transition: transform 0.35s cubic-bezier(0.77,0,0.175,1);
-      z-index: 0;
-    }
-    .btn-google:hover { color: var(--ink); }
-    .btn-google:hover::after { transform: translateX(0); }
-    .btn-google svg, .btn-google span { position: relative; z-index: 1; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
 
-    .btn-google svg { flex-shrink: 0; }
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(2.4rem, 5vw, 3.6rem);
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    color: var(--ink);
+    margin-bottom: 1.25rem;
+  }
 
-    .legal {
-      margin-top: 28px;
-      font-size: 0.78rem;
-      color: var(--muted);
-      line-height: 1.6;
-      animation: fadeUp 0.8s 0.3s ease both;
-    }
-    .legal a { color: var(--muted); text-decoration: underline; }
+  h1 em {
+    font-style: italic;
+    color: var(--accent);
+  }
 
-    /* ── Pills: features ── */
-    .pills {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 64px;
-      animation: fadeUp 0.8s 0.35s ease both;
-    }
-    .pill {
-      font-size: 0.78rem;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      border: 1px solid var(--border);
-      padding: 6px 14px;
-      color: var(--muted);
-    }
+  .hero-sub {
+    font-size: 1.05rem;
+    color: var(--ink-soft);
+    line-height: 1.7;
+    max-width: 440px;
+    margin-bottom: 2.5rem;
+    font-weight: 300;
+  }
 
-    /* ── Right: Visual ── */
-    .visual {
-      background: var(--ink);
-      position: relative;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+  .cta-group {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
 
-    .visual-inner {
-      position: relative;
-      width: 380px;
-      height: 380px;
-    }
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0.875rem 1.75rem;
+    background: var(--ink);
+    color: var(--white);
+    text-decoration: none;
+    border-radius: 100px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: background 0.2s, transform 0.15s;
+    border: none;
+    cursor: pointer;
+  }
+  .btn-primary:hover { background: var(--accent); transform: translateY(-2px); }
+  .btn-primary:active { transform: translateY(0); }
 
-    /* Concentric rings */
-    .ring {
-      position: absolute;
-      border-radius: 50%;
-      border: 1px solid rgba(245,242,235,0.12);
-      top: 50%; left: 50%;
-      transform: translate(-50%,-50%);
-    }
-    .ring:nth-child(1) { width: 100px; height: 100px; }
-    .ring:nth-child(2) { width: 180px; height: 180px; animation: spin 20s linear infinite; }
-    .ring:nth-child(3) { width: 280px; height: 280px; animation: spin 30s linear infinite reverse; }
-    .ring:nth-child(4) { width: 380px; height: 380px; animation: spin 45s linear infinite; }
+  .btn-primary .g-icon {
+    width: 18px;
+    height: 18px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
 
-    @keyframes spin { to { transform: translate(-50%,-50%) rotate(360deg); } }
+  .hero-note {
+    font-size: 0.8rem;
+    color: var(--ink-faint);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
 
-    /* Dots on rings */
-    .ring::before, .ring::after {
-      content: '';
-      position: absolute;
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: var(--amber);
-      top: -3.5px; left: 50%;
-      transform: translateX(-50%);
-    }
-    .ring:nth-child(3)::before { background: var(--rust); width: 9px; height: 9px; top: -4.5px; }
-    .ring:nth-child(4)::before { background: var(--sage); }
-    .ring::after { top: auto; bottom: -3.5px; left: 30%; background: rgba(245,242,235,0.3); width: 5px; height: 5px; }
+  .hero-note::before {
+    content: '';
+    display: block;
+    width: 14px;
+    height: 14px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239a9a93' stroke-width='2'%3E%3Cpath d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/%3E%3C/svg%3E") center/contain no-repeat;
+  }
 
-    /* Center mark */
-    .center-mark {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%,-50%);
-      width: 28px; height: 28px;
-      border-radius: 50%;
-      background: var(--amber);
-      box-shadow: 0 0 0 6px rgba(232,160,32,0.2), 0 0 0 12px rgba(232,160,32,0.1);
-    }
+  /* ── Hero visual: map mockup ── */
+  .hero-visual {
+    position: relative;
+    aspect-ratio: 1;
+    max-width: 480px;
+    margin: 0 auto;
+  }
 
-    /* Floating user cards */
-    .user-card {
-      position: absolute;
-      background: rgba(245,242,235,0.07);
-      border: 1px solid rgba(245,242,235,0.15);
-      backdrop-filter: blur(8px);
-      padding: 10px 14px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      animation: float 6s ease-in-out infinite;
-    }
-    .user-card:nth-child(1) { top: 8%; left: 5%; animation-delay: 0s; }
-    .user-card:nth-child(2) { bottom: 18%; right: 4%; animation-delay: -2s; }
-    .user-card:nth-child(3) { top: 55%; left: 2%; animation-delay: -4s; }
+  .map-shell {
+    width: 100%;
+    height: 100%;
+    background: #dde8d8;
+    border-radius: 24px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid var(--border);
+  }
 
-    @keyframes float {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-10px); }
-    }
+  .map-grid {
+    position: absolute;
+    inset: 0;
+    opacity: 0.35;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
 
-    .user-avatar {
-      width: 32px; height: 32px;
-      border-radius: 50%;
-      background: var(--muted);
-      flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.75rem;
-      color: var(--paper);
-      font-family: 'Syne', sans-serif;
-      font-weight: 700;
-    }
-    .user-avatar.amber { background: var(--amber); }
-    .user-avatar.rust  { background: var(--rust); }
-    .user-avatar.sage  { background: var(--sage); }
+  .map-road-h {
+    position: absolute;
+    height: 10px;
+    background: rgba(255,255,255,0.7);
+    border-radius: 5px;
+  }
+  .map-road-v {
+    position: absolute;
+    width: 10px;
+    background: rgba(255,255,255,0.7);
+    border-radius: 5px;
+  }
 
-    .user-info { display: flex; flex-direction: column; gap: 2px; }
-    .user-name { font-family: 'Syne', sans-serif; font-weight: 600; font-size: 0.78rem; color: var(--paper); letter-spacing: 0.04em; }
-    .user-dist { font-size: 0.68rem; color: rgba(245,242,235,0.45); }
+  .map-block {
+    position: absolute;
+    background: rgba(200,215,198,0.8);
+    border-radius: 6px;
+  }
 
-    .visual-label {
-      position: absolute;
-      bottom: 40px; left: 50%;
-      transform: translateX(-50%);
-      font-family: 'Syne', sans-serif;
-      font-weight: 600;
-      font-size: 0.7rem;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      color: rgba(245,242,235,0.3);
-      white-space: nowrap;
-    }
-  </style>
+  .pin {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    animation: float 3s ease-in-out infinite;
+  }
+  .pin:nth-child(odd) { animation-delay: -1.5s; }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+
+  .pin-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 3px solid white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+
+  .pin-tail {
+    width: 2px;
+    height: 8px;
+    background: white;
+    opacity: 0.8;
+  }
+
+  .pin-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: white;
+    opacity: 0.6;
+  }
+
+  .pin-label {
+    position: absolute;
+    top: -22px;
+    background: white;
+    color: var(--ink);
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 100px;
+    white-space: nowrap;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.2s, transform 0.2s;
+  }
+
+  .pin:hover .pin-label { opacity: 1; transform: translateY(0); }
+
+  .online-ring {
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 2px solid #4a8c5f;
+    animation: ring-pulse 2s infinite;
+  }
+
+  @keyframes ring-pulse {
+    0% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.5); }
+  }
+
+  .my-pin .pin-avatar {
+    width: 48px;
+    height: 48px;
+    border-width: 4px;
+  }
+
+  .radius-circle {
+    position: absolute;
+    border-radius: 50%;
+    border: 1.5px dashed rgba(45,90,61,0.4);
+    background: rgba(45,90,61,0.05);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  /* ── Features ── */
+  .features {
+    max-width: 1100px;
+    margin: 4rem auto;
+    padding: 0 2rem;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .feature-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.75rem;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .feature-card:hover { transform: translateY(-3px); border-color: var(--accent-mid); }
+
+  .feature-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: var(--accent-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+
+  .feature-icon svg { width: 22px; height: 22px; stroke: var(--accent); fill: none; stroke-width: 1.5; }
+
+  .feature-card h3 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.15rem;
+    margin-bottom: 0.5rem;
+    color: var(--ink);
+  }
+
+  .feature-card p {
+    font-size: 0.9rem;
+    color: var(--ink-soft);
+    line-height: 1.6;
+    font-weight: 300;
+  }
+
+  /* ── CTA section ── */
+  .cta-section {
+    max-width: 700px;
+    margin: 4rem auto 6rem;
+    padding: 3rem 2rem;
+    text-align: center;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    margin-inline: 2rem;
+  }
+
+  @media (min-width: 740px) {
+    .cta-section { margin-inline: auto; }
+  }
+
+  .cta-section h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(1.6rem, 4vw, 2.2rem);
+    letter-spacing: -0.02em;
+    margin-bottom: 0.75rem;
+    color: var(--ink);
+  }
+
+  .cta-section p {
+    font-size: 0.95rem;
+    color: var(--ink-soft);
+    margin-bottom: 2rem;
+    font-weight: 300;
+  }
+
+  /* ── Footer ── */
+  footer {
+    text-align: center;
+    padding: 2rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.8rem;
+    color: var(--ink-faint);
+  }
+
+  /* ── Error banner ── */
+  .error-banner {
+    display: none;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+    padding: 0.75rem 1.25rem;
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    text-align: center;
+    margin: 1rem 2rem 0;
+  }
+</style>
 </head>
 <body>
 
-  <div id="errorBanner" class="error-banner">
-    Authentication failed. Please try again.
+<nav>
+  <a href="/" class="logo">Near<span>Me</span></a>
+  <a href="/auth/google" class="nav-cta">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+    Sign in
+  </a>
+</nav>
+
+<div id="error-banner" class="error-banner"></div>
+
+<section class="hero">
+  <div class="hero-copy">
+    <div class="hero-tag">Live on your map</div>
+    <h1>Find <em>people</em> near you, right now</h1>
+    <p class="hero-sub">NearMe shows you who's around — friends, colleagues, or anyone with shared interests — in real time. No feed. No algorithm. Just the people within reach.</p>
+    <div class="cta-group">
+      <a href="/auth/google" class="btn-primary">
+        <span class="g-icon">
+          <svg width="12" height="12" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+        </span>
+        Continue with Google
+      </a>
+      <span class="hero-note">Free · No credit card</span>
+    </div>
   </div>
 
-  <main class="page">
-    <!-- Left -->
-    <section class="content">
-      <div class="wordmark">
-        <div class="dot"></div>
-        NearMe
+  <div class="hero-visual">
+    <div class="map-shell">
+      <div class="map-grid"></div>
+
+      <!-- Roads -->
+      <div class="map-road-h" style="top:35%;left:0;right:0;"></div>
+      <div class="map-road-h" style="top:65%;left:0;right:0;"></div>
+      <div class="map-road-v" style="left:30%;top:0;bottom:0;"></div>
+      <div class="map-road-v" style="left:65%;top:0;bottom:0;"></div>
+
+      <!-- Blocks -->
+      <div class="map-block" style="top:10%;left:5%;width:22%;height:20%;"></div>
+      <div class="map-block" style="top:10%;left:35%;width:26%;height:20%;"></div>
+      <div class="map-block" style="top:10%;left:70%;width:24%;height:20%;"></div>
+      <div class="map-block" style="top:42%;left:5%;width:20%;height:18%;"></div>
+      <div class="map-block" style="top:42%;left:35%;width:26%;height:18%;"></div>
+      <div class="map-block" style="top:42%;left:70%;width:24%;height:18%;"></div>
+      <div class="map-block" style="top:72%;left:5%;width:22%;height:22%;"></div>
+      <div class="map-block" style="top:72%;left:35%;width:26%;height:22%;"></div>
+      <div class="map-block" style="top:72%;left:70%;width:24%;height:22%;"></div>
+
+      <!-- Radius ring centred on "me" at ~50%,50% -->
+      <div class="radius-circle" style="width:55%;height:55%;top:50%;left:50%;"></div>
+
+      <!-- Other users -->
+      <div class="pin" style="top:22%;left:18%;">
+        <div class="pin-label">Priya</div>
+        <div class="pin-avatar" style="background:#4a7c8c;">PR</div>
+        <div class="pin-tail"></div><div class="pin-dot"></div>
       </div>
 
-      <h1 class="headline">
-        People<br>are <em>right<br>here.</em>
-      </h1>
-
-      <p class="subline">
-        Discover who's around you right now — share a moment, find a collaborator, or just say hello.
-      </p>
-
-      <a href="/auth/google" class="btn-google">
-        <svg width="20" height="20" viewBox="0 0 48 48" fill="none">
-          <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-          <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-          <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-          <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-        </svg>
-        <span>Continue with Google</span>
-      </a>
-
-      <p class="legal">
-        By continuing, you agree to our Terms of Service and Privacy Policy.<br>
-        We only request your name, email, and profile photo.
-      </p>
-
-      <div class="pills">
-        <span class="pill">Real-time location</span>
-        <span class="pill">No cold DMs</span>
-        <span class="pill">Interest matching</span>
-        <span class="pill">Privacy first</span>
+      <div class="pin" style="top:28%;left:70%;">
+        <div class="pin-label">Rohan</div>
+        <div class="pin-avatar" style="background:#8c6a4a;">RO</div>
+        <div class="pin-tail"></div><div class="pin-dot"></div>
       </div>
-    </section>
 
-    <!-- Right -->
-    <section class="visual" aria-hidden="true">
-      <div class="user-card">
-        <div class="user-avatar amber">AK</div>
-        <div class="user-info">
-          <span class="user-name">Arjun K.</span>
-          <span class="user-dist">120 m away</span>
+      <div class="pin" style="top:62%;left:22%;">
+        <div class="pin-label">Aisha</div>
+        <div class="pin-avatar" style="background:#7a4a8c;">AI</div>
+        <div class="pin-tail"></div><div class="pin-dot"></div>
+      </div>
+
+      <div class="pin" style="top:68%;left:72%;">
+        <div class="pin-label">Dev</div>
+        <div class="pin-avatar" style="background:#4a8c6a;">DE</div>
+        <div class="pin-tail"></div><div class="pin-dot"></div>
+      </div>
+
+      <!-- Me pin -->
+      <div class="pin my-pin" style="top:46%;left:46%;">
+        <div style="position:relative;">
+          <div class="online-ring"></div>
+          <div class="pin-avatar" style="background:var(--accent);">ME</div>
         </div>
+        <div class="pin-tail"></div><div class="pin-dot"></div>
       </div>
-      <div class="user-card">
-        <div class="user-avatar rust">SR</div>
-        <div class="user-info">
-          <span class="user-name">Sana R.</span>
-          <span class="user-dist">340 m away</span>
-        </div>
-      </div>
-      <div class="user-card">
-        <div class="user-avatar sage">MV</div>
-        <div class="user-info">
-          <span class="user-name">Mihail V.</span>
-          <span class="user-dist">780 m away</span>
-        </div>
-      </div>
+    </div>
+  </div>
+</section>
 
-      <div class="visual-inner">
-        <div class="ring"></div>
-        <div class="ring"></div>
-        <div class="ring"></div>
-        <div class="ring"></div>
-        <div class="center-mark"></div>
+<section class="features">
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
       </div>
+      <h3>Real-time presence</h3>
+      <p>See who's nearby the moment they open the app. Presence updates live as people arrive or leave your radius.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </div>
+      <h3>Shared interests</h3>
+      <p>Add tags for what you love — hiking, coffee, design, code. Find people who share them, right around the corner.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <h3>Privacy first</h3>
+      <p>Your precise location never leaves your device. We only store a fuzzy point and only share it while you're active.</p>
+    </div>
+  </div>
+</section>
 
-      <span class="visual-label">You are here</span>
-    </section>
-  </main>
+<div class="cta-section">
+  <h2>Ready to look up?</h2>
+  <p>Takes 10 seconds. No app store. Works in your browser.</p>
+  <a href="/auth/google" class="btn-primary" style="margin: 0 auto;">
+    <span class="g-icon">
+      <svg width="12" height="12" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+    </span>
+    Get started with Google
+  </a>
+</div>
 
-  <script>
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('error')) {
-      document.getElementById('errorBanner').classList.add('visible');
-    }
-  </script>
+<footer>
+  &copy; 2025 NearMe &nbsp;·&nbsp; Built for the people around you
+</footer>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  if (params.get('error') === 'oauth_failed') {
+    const banner = document.getElementById('error-banner');
+    banner.textContent = 'Sign-in failed — please try again.';
+    banner.style.display = 'block';
+  }
+</script>
 </body>
 </html>
