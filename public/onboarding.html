@@ -450,16 +450,20 @@
   // ── Render interests ───────────────────────────────────────────────────────
   const grid = document.getElementById('interests-grid');
   INTERESTS.forEach(i => {
+    // Strip leading emoji + space reliably using Unicode segmentation
+    const label = i.replace(/^\S+\s/, '').trim();
+    const value = label.toLowerCase();
+
     const chip = document.createElement('div');
     chip.className = 'interest-chip';
     chip.textContent = i;
-    chip.dataset.value = i.replace(/^.+? /, '').toLowerCase();
+    chip.dataset.value = value;
     chip.onclick = () => {
-      if (selectedInterests.has(chip.dataset.value)) {
-        selectedInterests.delete(chip.dataset.value);
+      if (selectedInterests.has(value)) {
+        selectedInterests.delete(value);
         chip.classList.remove('selected');
       } else {
-        selectedInterests.add(chip.dataset.value);
+        selectedInterests.add(value);
         chip.classList.add('selected');
       }
     };
@@ -496,17 +500,35 @@
 
   // ── Step navigation ────────────────────────────────────────────────────────
   function goStep(n) {
+    // Only validate when moving forward
     if (n > currentStep && !validateStep(currentStep)) return;
 
+    // Deactivate current panel
     document.getElementById(`panel-${currentStep}`).classList.remove('active');
-    document.getElementById(`step-indicator-${currentStep}`).classList.remove('active');
-    document.getElementById(`step-indicator-${currentStep}`).classList.add('done');
+
+    // Update step indicator for the step we're leaving:
+    // mark as done only if it's behind the new step, otherwise reset to inactive
+    const leavingIndicator = document.getElementById(`step-indicator-${currentStep}`);
+    leavingIndicator.classList.remove('active', 'done');
+    if (currentStep < n) leavingIndicator.classList.add('done');
 
     currentStep = n;
 
+    // Activate new panel
     document.getElementById(`panel-${n}`).classList.add('active');
-    document.getElementById(`step-indicator-${n}`).classList.remove('done');
-    document.getElementById(`step-indicator-${n}`).classList.add('active');
+
+    // New step indicator: active; clear done in case we went back then forward
+    const arrivingIndicator = document.getElementById(`step-indicator-${n}`);
+    arrivingIndicator.classList.remove('done');
+    arrivingIndicator.classList.add('active');
+
+    // Steps ahead of current should be plain inactive
+    [1, 2, 3].forEach(s => {
+      if (s > n) {
+        const ind = document.getElementById(`step-indicator-${s}`);
+        ind.classList.remove('active', 'done');
+      }
+    });
 
     const widths = { 1: '33%', 2: '66%', 3: '100%' };
     document.getElementById('progressBar').style.width = widths[n];
