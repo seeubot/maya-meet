@@ -2,34 +2,25 @@ const express = require('express');
 const router  = express.Router();
 const User    = require('../models/User');
 
-// ── Middleware ────────────────────────────────────────────────────────────────
+// ── Auth middleware ───────────────────────────────────────────────────────────
 const requireAuth = (req, res, next) => {
-  if (!req.isAuthenticated()) return res.status(401).json({ error: 'Unauthorized' });
-  next();
+  if (req.isAuthenticated()) return next();
+  return res.status(401).json({ error: 'Unauthorized' });
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/** Strip HTML/script tags and trim a string */
+// ── Sanitisation helpers ──────────────────────────────────────────────────────
 function sanitiseText(str, maxLen = 200) {
   if (typeof str !== 'string') return '';
-  return str
-    .replace(/<[^>]*>/g, '')   // strip tags
-    .replace(/[<>]/g, '')      // strip stray brackets
-    .trim()
-    .slice(0, maxLen);
+  return str.replace(/<[^>]*>/g, '').replace(/[<>]/g, '').trim().slice(0, maxLen);
 }
 
-/** Clean an array of interest strings */
 function sanitiseInterests(arr) {
   if (!Array.isArray(arr)) return [];
-  return arr
-    .map(i => sanitiseText(String(i), 40))
-    .filter(Boolean)
-    .slice(0, 20);
+  return [...new Set(
+    arr.map(i => sanitiseText(String(i), 40)).filter(Boolean)
+  )].slice(0, 20);
 }
 
-/** Convert radius value to a clamped integer in metres */
 function clampRadius(val) {
   const n = parseInt(val, 10);
   if (isNaN(n)) return 5000;
@@ -38,15 +29,15 @@ function clampRadius(val) {
 
 const VALID_LOOKING_FOR = new Set(['friendship', 'networking', 'dating', 'collaboration', 'all']);
 
-// ── POST /api/users/onboarding ───────────────────────────────────────────────
-// Called once when a new user completes the onboarding flow.
-// Also acts as "save profile edits" if profileComplete is already true —
-// it will just update the fields without touching onboardedAt.
+// ── POST /api/users/onboarding ────────────────────────────────────────────────
+// Completes first-time setup OR re-saves profile edits from the onboarding page.
+// KEY FIX: after saving, we re-fetch the user and write it back into req.session
+// so that the very next req.user.profileComplete is true — no stale cache.
 router.post('/onboarding', requireAuth, async (req, res) => {
   try {
     const { bio, interests, lookingFor, searchRadius, isVisible } = req.body;
 
-    // — Validate —
+    // ── Validate ─────────────────────────────────────────────────────────────
     const cleanBio = sanitiseText(bio, 200);
     if (!cleanBio || cleanBio.length < 10) {
       return res.status(400).json({ error: 'Bio must be at least 10 characters.' });
@@ -63,6 +54,7 @@ router.post('/onboarding', requireAuth, async (req, res) => {
 
     const isFirstTime = !req.user.profileComplete;
 
+    // ── Persist ───────────────────────────────────────────────────────────────
     const updatePayload = {
       bio:             cleanBio,
       interests:       cleanInterests,
@@ -71,8 +63,6 @@ router.post('/onboarding', requireAuth, async (req, res) => {
       isVisible:       cleanVisible,
       profileComplete: true,
     };
-
-    // Only set onboardedAt the very first time
     if (isFirstTime) {
       updatePayload.onboardedAt = new Date();
     }
@@ -80,35 +70,50 @@ router.post('/onboarding', requireAuth, async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(
       req.user._id,
       { $set: updatePayload },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true, lean: true }
     );
 
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // ── Refresh session ───────────────────────────────────────────────────────
+    // This is the critical fix: write the updated user back into the Passport
+    // session so that req.user.profileComplete is true on the VERY NEXT request
+    // (i.e. the GET /app that follows the redirect from the frontend).
+    await new Promise((resolve, reject) => {
+      req.login(updatedUser, err => err ? reject(err) : resolve());
+    });
+
+    console.log(`[INFO ] [onboarding] saved — userId=${updatedUser._id} firstTime=${isFirstTime} profileComplete=true`);
+
     return res.json({
-      success:    true,
-      firstTime:  isFirstTime,
+      success:   true,
+      firstTime: isFirstTime,
       user: {
-        id:          updatedUser._id,
-        name:        updatedUser.name,
-        bio:         updatedUser.bio,
-        interests:   updatedUser.interests,
-        lookingFor:  updatedUser.lookingFor,
-        searchRadius:updatedUser.searchRadius,
-        isVisible:   updatedUser.isVisible,
+        id:           updatedUser._id,
+        name:         updatedUser.name,
+        bio:          updatedUser.bio,
+        interests:    updatedUser.interests,
+        lookingFor:   updatedUser.lookingFor,
+        searchRadius: updatedUser.searchRadius,
+        isVisible:    updatedUser.isVisible,
+        profileComplete: updatedUser.profileComplete,
       }
     });
 
   } catch (err) {
-    console.error('[onboarding]', err);
+    console.error('[ERROR] [onboarding]', err.message);
     if (err.name === 'ValidationError') {
-      const messages = Object.values(err.errors).map(e => e.message).join(' ');
-      return res.status(400).json({ error: messages });
+      const msg = Object.values(err.errors).map(e => e.message).join(' ');
+      return res.status(400).json({ error: msg });
     }
     return res.status(500).json({ error: 'Failed to save profile. Please try again.' });
   }
 });
 
 // ── PUT /api/users/profile ────────────────────────────────────────────────────
-// In-app profile edits (sidebar). Requires profile to already be complete.
+// In-app sidebar edits — profile must already be complete.
 router.put('/profile', requireAuth, async (req, res) => {
   try {
     const { bio, interests, lookingFor, searchRadius, isVisible } = req.body;
@@ -121,25 +126,16 @@ router.put('/profile', requireAuth, async (req, res) => {
 
     const user = await User.findByIdAndUpdate(
       req.user._id,
-      {
-        $set: {
-          bio:          cleanBio,
-          interests:    cleanInterests,
-          lookingFor:   cleanLooking,
-          searchRadius: cleanRadius,
-          isVisible:    cleanVisible,
-        }
-      },
-      { new: true, runValidators: true }
+      { $set: { bio: cleanBio, interests: cleanInterests, lookingFor: cleanLooking, searchRadius: cleanRadius, isVisible: cleanVisible } },
+      { new: true, runValidators: true, lean: true }
     );
 
     return res.json({ success: true, user });
 
   } catch (err) {
-    console.error('[profile update]', err);
+    console.error('[ERROR] [profile update]', err.message);
     if (err.name === 'ValidationError') {
-      const messages = Object.values(err.errors).map(e => e.message).join(' ');
-      return res.status(400).json({ error: messages });
+      return res.status(400).json({ error: Object.values(err.errors).map(e => e.message).join(' ') });
     }
     return res.status(500).json({ error: 'Failed to update profile.' });
   }
@@ -151,32 +147,27 @@ router.put('/location', requireAuth, async (req, res) => {
     const lat = parseFloat(req.body.lat);
     const lng = parseFloat(req.body.lng);
 
-    if (isNaN(lat) || isNaN(lng)
-      || lat < -90  || lat > 90
-      || lng < -180 || lng > 180) {
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
       return res.status(400).json({ error: 'Invalid coordinates.' });
     }
-
-    const city    = sanitiseText(req.body.city    || '', 80);
-    const country = sanitiseText(req.body.country || '', 60);
 
     await User.findByIdAndUpdate(req.user._id, {
       $set: {
         location: {
-          type:        'Point',
+          type: 'Point',
           coordinates: [lng, lat],
-          city,
-          country
+          city:    sanitiseText(req.body.city    || '', 80),
+          country: sanitiseText(req.body.country || '', 60),
         },
         lastSeen: new Date(),
-        isOnline: true
+        isOnline: true,
       }
     });
 
     return res.json({ success: true });
 
   } catch (err) {
-    console.error('[location update]', err);
+    console.error('[ERROR] [location]', err.message);
     return res.status(500).json({ error: 'Failed to update location.' });
   }
 });
@@ -184,30 +175,25 @@ router.put('/location', requireAuth, async (req, res) => {
 // ── GET /api/users/nearby ─────────────────────────────────────────────────────
 router.get('/nearby', requireAuth, async (req, res) => {
   try {
-    const currentUser = await User.findById(req.user._id)
-      .select('location searchRadius');
+    const me = await User.findById(req.user._id).select('location searchRadius').lean();
 
-    if (!currentUser?.location
-      || (currentUser.location.coordinates[0] === 0
-       && currentUser.location.coordinates[1] === 0)) {
+    const coords = me?.location?.coordinates;
+    if (!coords || (coords[0] === 0 && coords[1] === 0)) {
       return res.json({ users: [] });
     }
 
-    const radius         = currentUser.searchRadius || 5000;
-    const activeWindow   = new Date(Date.now() - 5 * 60 * 1000); // last 5 min
+    const radius      = me.searchRadius || 5000;
+    const activeAfter = new Date(Date.now() - 5 * 60 * 1000);
 
-    const nearbyUsers = await User.find({
-      _id:            { $ne: req.user._id },
-      isVisible:      true,
+    const nearby = await User.find({
+      _id:             { $ne: req.user._id },
+      isVisible:       true,
       profileComplete: true,
-      lastSeen:       { $gte: activeWindow },
+      lastSeen:        { $gte: activeAfter },
       location: {
         $near: {
-          $geometry: {
-            type:        'Point',
-            coordinates: currentUser.location.coordinates
-          },
-          $maxDistance: radius
+          $geometry: { type: 'Point', coordinates: coords },
+          $maxDistance: radius,
         }
       }
     })
@@ -215,10 +201,10 @@ router.get('/nearby', requireAuth, async (req, res) => {
     .limit(50)
     .lean();
 
-    return res.json({ users: nearbyUsers });
+    return res.json({ users: nearby });
 
   } catch (err) {
-    console.error('[nearby]', err);
+    console.error('[ERROR] [nearby]', err.message);
     return res.status(500).json({ error: 'Failed to fetch nearby users.' });
   }
 });
@@ -226,21 +212,18 @@ router.get('/nearby', requireAuth, async (req, res) => {
 // ── GET /api/users/:id ────────────────────────────────────────────────────────
 router.get('/:id', requireAuth, async (req, res) => {
   try {
-    // Basic ObjectId length guard to avoid mongoose cast errors on bad input
     if (!/^[a-f\d]{24}$/i.test(req.params.id)) {
       return res.status(400).json({ error: 'Invalid user id.' });
     }
-
     const user = await User.findById(req.params.id)
       .select('name avatar bio interests lookingFor lastSeen isOnline')
       .lean();
 
     if (!user) return res.status(404).json({ error: 'User not found.' });
-
     return res.json(user);
 
   } catch (err) {
-    console.error('[get user]', err);
+    console.error('[ERROR] [get user]', err.message);
     return res.status(500).json({ error: 'Failed to fetch user.' });
   }
 });
