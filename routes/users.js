@@ -1,130 +1,247 @@
 const express = require('express');
-const router = express.Router();
-const User = require('../models/User');
+const router  = express.Router();
+const User    = require('../models/User');
 
-// ─── Auth middleware ───────────────────────────────────────────────────────────
+// ── Middleware ────────────────────────────────────────────────────────────────
 const requireAuth = (req, res, next) => {
   if (!req.isAuthenticated()) return res.status(401).json({ error: 'Unauthorized' });
   next();
 };
 
-// ─── GET /me ──────────────────────────────────────────────────────────────────
-// Returns the authenticated user's own full profile.
-// NOTE: Must be defined before /:id to avoid "me" being treated as a Mongo ID.
-router.get('/me', requireAuth, async (req, res) => {
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Strip HTML/script tags and trim a string */
+function sanitiseText(str, maxLen = 200) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/<[^>]*>/g, '')   // strip tags
+    .replace(/[<>]/g, '')      // strip stray brackets
+    .trim()
+    .slice(0, maxLen);
+}
+
+/** Clean an array of interest strings */
+function sanitiseInterests(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map(i => sanitiseText(String(i), 40))
+    .filter(Boolean)
+    .slice(0, 20);
+}
+
+/** Convert radius value to a clamped integer in metres */
+function clampRadius(val) {
+  const n = parseInt(val, 10);
+  if (isNaN(n)) return 5000;
+  return Math.min(50000, Math.max(500, n));
+}
+
+const VALID_LOOKING_FOR = new Set(['friendship', 'networking', 'dating', 'collaboration', 'all']);
+
+// ── POST /api/users/onboarding ───────────────────────────────────────────────
+// Called once when a new user completes the onboarding flow.
+// Also acts as "save profile edits" if profileComplete is already true —
+// it will just update the fields without touching onboardedAt.
+router.post('/onboarding', requireAuth, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id)
-      .select('name avatar email bio interests lookingFor searchRadius isVisible lastSeen isOnline');
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json(user);
+    const { bio, interests, lookingFor, searchRadius, isVisible } = req.body;
+
+    // — Validate —
+    const cleanBio = sanitiseText(bio, 200);
+    if (!cleanBio || cleanBio.length < 10) {
+      return res.status(400).json({ error: 'Bio must be at least 10 characters.' });
+    }
+
+    const cleanInterests = sanitiseInterests(interests);
+    if (cleanInterests.length < 2) {
+      return res.status(400).json({ error: 'Please select at least 2 interests.' });
+    }
+
+    const cleanLooking = VALID_LOOKING_FOR.has(lookingFor) ? lookingFor : 'all';
+    const cleanRadius  = clampRadius(searchRadius);
+    const cleanVisible = typeof isVisible === 'boolean' ? isVisible : true;
+
+    const isFirstTime = !req.user.profileComplete;
+
+    const updatePayload = {
+      bio:             cleanBio,
+      interests:       cleanInterests,
+      lookingFor:      cleanLooking,
+      searchRadius:    cleanRadius,
+      isVisible:       cleanVisible,
+      profileComplete: true,
+    };
+
+    // Only set onboardedAt the very first time
+    if (isFirstTime) {
+      updatePayload.onboardedAt = new Date();
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id,
+      { $set: updatePayload },
+      { new: true, runValidators: true }
+    );
+
+    return res.json({
+      success:    true,
+      firstTime:  isFirstTime,
+      user: {
+        id:          updatedUser._id,
+        name:        updatedUser.name,
+        bio:         updatedUser.bio,
+        interests:   updatedUser.interests,
+        lookingFor:  updatedUser.lookingFor,
+        searchRadius:updatedUser.searchRadius,
+        isVisible:   updatedUser.isVisible,
+      }
+    });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch profile' });
+    console.error('[onboarding]', err);
+    if (err.name === 'ValidationError') {
+      const messages = Object.values(err.errors).map(e => e.message).join(' ');
+      return res.status(400).json({ error: messages });
+    }
+    return res.status(500).json({ error: 'Failed to save profile. Please try again.' });
   }
 });
 
-// ─── PUT /profile ─────────────────────────────────────────────────────────────
+// ── PUT /api/users/profile ────────────────────────────────────────────────────
+// In-app profile edits (sidebar). Requires profile to already be complete.
 router.put('/profile', requireAuth, async (req, res) => {
   try {
     const { bio, interests, lookingFor, searchRadius, isVisible } = req.body;
+
+    const cleanBio       = sanitiseText(bio, 200);
+    const cleanInterests = sanitiseInterests(interests);
+    const cleanLooking   = VALID_LOOKING_FOR.has(lookingFor) ? lookingFor : 'all';
+    const cleanRadius    = clampRadius(searchRadius);
+    const cleanVisible   = typeof isVisible === 'boolean' ? isVisible : true;
+
     const user = await User.findByIdAndUpdate(
       req.user._id,
-      { bio, interests, lookingFor, searchRadius, isVisible, onboardingComplete: true },
+      {
+        $set: {
+          bio:          cleanBio,
+          interests:    cleanInterests,
+          lookingFor:   cleanLooking,
+          searchRadius: cleanRadius,
+          isVisible:    cleanVisible,
+        }
+      },
       { new: true, runValidators: true }
-    ).select('-__v');
-    res.json({ success: true, user });
+    );
+
+    return res.json({ success: true, user });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to update profile' });
+    console.error('[profile update]', err);
+    if (err.name === 'ValidationError') {
+      const messages = Object.values(err.errors).map(e => e.message).join(' ');
+      return res.status(400).json({ error: messages });
+    }
+    return res.status(500).json({ error: 'Failed to update profile.' });
   }
 });
 
-// ─── PUT /location ────────────────────────────────────────────────────────────
-// FIX: city/country must NOT be nested inside the GeoJSON Point object.
-// GeoJSON only allows { type, coordinates } — extra fields break $near queries.
+// ── PUT /api/users/location ───────────────────────────────────────────────────
 router.put('/location', requireAuth, async (req, res) => {
   try {
-    const { lat, lng, city, country } = req.body;
-    if (lat == null || lng == null) {
-      return res.status(400).json({ error: 'Coordinates required' });
+    const lat = parseFloat(req.body.lat);
+    const lng = parseFloat(req.body.lng);
+
+    if (isNaN(lat) || isNaN(lng)
+      || lat < -90  || lat > 90
+      || lng < -180 || lng > 180) {
+      return res.status(400).json({ error: 'Invalid coordinates.' });
     }
 
+    const city    = sanitiseText(req.body.city    || '', 80);
+    const country = sanitiseText(req.body.country || '', 60);
+
     await User.findByIdAndUpdate(req.user._id, {
-      location: {
-        type: 'Point',
-        coordinates: [parseFloat(lng), parseFloat(lat)]
-      },
-      locationCity:    city    || '',   // stored at top level, not inside GeoJSON
-      locationCountry: country || '',
-      lastSeen:        new Date(),
-      isOnline:        true
+      $set: {
+        location: {
+          type:        'Point',
+          coordinates: [lng, lat],
+          city,
+          country
+        },
+        lastSeen: new Date(),
+        isOnline: true
+      }
     });
 
-    res.json({ success: true });
+    return res.json({ success: true });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to update location' });
+    console.error('[location update]', err);
+    return res.status(500).json({ error: 'Failed to update location.' });
   }
 });
 
-// ─── GET /nearby ──────────────────────────────────────────────────────────────
-// FIX 1: Extended activity window from 5 min → 30 min (5 min was too aggressive).
-// FIX 2: Coordinates are NOT returned to the caller – only city/country are exposed.
+// ── GET /api/users/nearby ─────────────────────────────────────────────────────
 router.get('/nearby', requireAuth, async (req, res) => {
   try {
-    const currentUser = await User.findById(req.user._id);
+    const currentUser = await User.findById(req.user._id)
+      .select('location searchRadius');
 
-    if (!currentUser.location?.coordinates?.length ||
-        currentUser.location.coordinates[0] === 0) {
+    if (!currentUser?.location
+      || (currentUser.location.coordinates[0] === 0
+       && currentUser.location.coordinates[1] === 0)) {
       return res.json({ users: [] });
     }
 
     const radius         = currentUser.searchRadius || 5000;
-    const thirtyMinAgo   = new Date(Date.now() - 30 * 60 * 1000);
+    const activeWindow   = new Date(Date.now() - 5 * 60 * 1000); // last 5 min
 
     const nearbyUsers = await User.find({
-      _id:      { $ne: req.user._id },
-      isVisible: true,
-      lastSeen: { $gte: thirtyMinAgo },
+      _id:            { $ne: req.user._id },
+      isVisible:      true,
+      profileComplete: true,
+      lastSeen:       { $gte: activeWindow },
       location: {
         $near: {
           $geometry: {
-            type: 'Point',
+            type:        'Point',
             coordinates: currentUser.location.coordinates
           },
           $maxDistance: radius
         }
       }
     })
-    // FIX 3: Exclude exact coordinates from results — return city/country only.
-    .select('name avatar bio interests lookingFor locationCity locationCountry lastSeen isOnline')
-    .limit(50);
+    .select('name avatar bio interests lookingFor location lastSeen isOnline')
+    .limit(50)
+    .lean();
 
-    res.json({ users: nearbyUsers });
+    return res.json({ users: nearbyUsers });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch nearby users' });
+    console.error('[nearby]', err);
+    return res.status(500).json({ error: 'Failed to fetch nearby users.' });
   }
 });
 
-// ─── GET /:id ─────────────────────────────────────────────────────────────────
-// FIX: Validate that :id is a valid ObjectId before querying to avoid a
-// CastError when an invalid string (e.g. a misrouted path) hits this route.
-// Coordinates are excluded here too.
+// ── GET /api/users/:id ────────────────────────────────────────────────────────
 router.get('/:id', requireAuth, async (req, res) => {
   try {
-    if (!req.params.id.match(/^[a-f\d]{24}$/i)) {
-      return res.status(400).json({ error: 'Invalid user ID' });
+    // Basic ObjectId length guard to avoid mongoose cast errors on bad input
+    if (!/^[a-f\d]{24}$/i.test(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid user id.' });
     }
 
     const user = await User.findById(req.params.id)
-      .select('name avatar bio interests lookingFor locationCity locationCountry lastSeen isOnline');
+      .select('name avatar bio interests lookingFor lastSeen isOnline')
+      .lean();
 
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json(user);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    return res.json(user);
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch user' });
+    console.error('[get user]', err);
+    return res.status(500).json({ error: 'Failed to fetch user.' });
   }
 });
 
