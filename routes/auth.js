@@ -1,6 +1,5 @@
 const express = require('express');
 const passport = require('passport');
-
 const router = express.Router();
 
 // ── Initiate Google OAuth flow ────────────────────────────────────────────────
@@ -13,7 +12,10 @@ router.get('/google', passport.authenticate('google', {
 router.get(
   '/google/callback',
   passport.authenticate('google', { failureRedirect: '/?error=oauth_failed' }),
-  (req, res) => res.redirect('/app')
+  (req, res) => {
+    // Let the root handler decide: onboarding or app
+    res.redirect('/');
+  }
 );
 
 // ── Logout ────────────────────────────────────────────────────────────────────
@@ -32,8 +34,8 @@ router.get('/me', (req, res) => {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
-  const { _id, name, email, avatar, bio, interests, isOnline, lastSeen } = req.user;
-  res.json({ _id, name, email, avatar, bio, interests, isOnline, lastSeen });
+  const { _id, name, email, avatar, bio, interests, isOnline, lastSeen, profileComplete } = req.user;
+  res.json({ _id, name, email, avatar, bio, interests, isOnline, lastSeen, profileComplete });
 });
 
 module.exports = router;
