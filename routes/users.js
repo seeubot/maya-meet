@@ -26,7 +26,7 @@ router.get('/me', async (req, res) => {
 // ── PATCH /api/users/me ───────────────────────────────────────────────────────
 // Update profile (used during onboarding and settings)
 router.patch('/me', async (req, res) => {
-  const allowed = ['name', 'interests'];
+  const allowed = ['name', 'bio', 'interests'];
   const updates = {};
 
   for (const key of allowed) {
@@ -38,6 +38,14 @@ router.patch('/me', async (req, res) => {
     updates.name = String(updates.name).trim();
     if (!updates.name || updates.name.length > 100) {
       return res.status(400).json({ error: 'Name must be 1–100 characters' });
+    }
+  }
+
+  // Validate bio
+  if (updates.bio !== undefined) {
+    updates.bio = String(updates.bio).trim();
+    if (updates.bio.length > 300) {
+      return res.status(400).json({ error: 'Bio must be under 300 characters' });
     }
   }
 
