@@ -1,608 +1,176 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>NearMe — Set Up Your Profile</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --ink: #0a0a0f;
-    --paper: #f5f3ee;
-    --accent: #ff4d1c;
-    --accent2: #1c6eff;
-    --surface: #ffffff;
-    --muted: #8a8880;
-    --border: rgba(10,10,15,0.12);
-    --success: #22c55e;
-  }
-
-  html, body { min-height: 100%; }
-  body {
-    font-family: 'DM Sans', sans-serif;
-    background: var(--paper);
-    color: var(--ink);
-  }
-
-  /* ── Grid bg ── */
-  body::before {
-    content: '';
-    position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    background-image:
-      linear-gradient(var(--border) 1px, transparent 1px),
-      linear-gradient(90deg, var(--border) 1px, transparent 1px);
-    background-size: 60px 60px;
-  }
-
-  /* ── Layout ── */
-  .layout {
-    position: relative; z-index: 1;
-    min-height: 100vh;
-    display: grid;
-    grid-template-columns: 320px 1fr;
-  }
-
-  /* ── Sidebar ── */
-  .sidebar {
-    border-right: 1px solid var(--border);
-    padding: 40px 36px;
-    display: flex; flex-direction: column;
-    background: rgba(255,255,255,0.5);
-    backdrop-filter: blur(8px);
-    position: sticky; top: 0; height: 100vh; overflow-y: auto;
-  }
-
-  .logo {
-    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.2rem;
-    letter-spacing: -0.02em;
-    display: flex; align-items: center; gap: 8px;
-    margin-bottom: 56px;
-  }
-  .logo-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: var(--accent);
-    animation: pulse 2s ease-in-out infinite;
-  }
-  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.5); opacity:0.6; } }
-
-  /* Steps */
-  .steps { display: flex; flex-direction: column; gap: 4px; }
-
-  .step {
-    display: flex; align-items: flex-start; gap: 16px;
-    padding: 16px 0;
-    border-bottom: 1px solid var(--border);
-    cursor: default;
-    opacity: 0.4;
-    transition: opacity 0.3s;
-  }
-  .step.active { opacity: 1; }
-  .step.done   { opacity: 0.7; }
-
-  .step-num {
-    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
-    border: 1.5px solid var(--ink);
-    display: flex; align-items: center; justify-content: center;
-    font-family: 'Syne', sans-serif; font-size: 0.75rem; font-weight: 700;
-    transition: background 0.3s, color 0.3s;
-  }
-  .step.active .step-num { background: var(--accent); border-color: var(--accent); color: white; }
-  .step.done   .step-num { background: var(--success); border-color: var(--success); color: white; }
-
-  .step-label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 2px; }
-  .step-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.9rem; }
-
-  .sidebar-foot {
-    margin-top: auto; padding-top: 32px;
-    font-size: 0.72rem; color: var(--muted); line-height: 1.6;
-  }
-
-  /* ── Main ── */
-  .main {
-    padding: 60px 72px;
-    display: flex; flex-direction: column; justify-content: center;
-    min-height: 100vh;
-  }
-
-  /* Step panels */
-  .panel { display: none; animation: panel-in 0.5s cubic-bezier(0.16,1,0.3,1) both; }
-  .panel.active { display: block; }
-  @keyframes panel-in { from { opacity:0; transform: translateX(20px); } to { opacity:1; transform: translateX(0); } }
-
-  .panel-eyebrow {
-    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em;
-    color: var(--muted); margin-bottom: 12px; font-weight: 400;
-  }
-
-  .panel-title {
-    font-family: 'Syne', sans-serif; font-weight: 800;
-    font-size: clamp(2rem, 3.5vw, 3rem);
-    line-height: 1; letter-spacing: -0.02em;
-    margin-bottom: 8px;
-  }
-
-  .panel-sub {
-    font-size: 0.95rem; color: var(--muted); margin-bottom: 40px; font-weight: 300;
-    max-width: 480px;
-  }
-
-  /* ── Form fields ── */
-  .field { margin-bottom: 28px; }
-
-  label {
-    display: block; font-size: 0.78rem; text-transform: uppercase;
-    letter-spacing: 0.08em; color: var(--muted); margin-bottom: 8px; font-weight: 500;
-  }
-
-  textarea, input[type="range"] {
-    width: 100%;
-    font-family: 'DM Sans', sans-serif;
-  }
-
-  textarea {
-    border: 1.5px solid var(--border);
-    border-radius: 4px; padding: 16px 20px;
-    font-size: 0.95rem; line-height: 1.65; resize: vertical;
-    background: var(--surface); color: var(--ink);
-    transition: border-color 0.2s;
-    min-height: 120px;
-  }
-  textarea:focus { outline: none; border-color: var(--accent); }
-
-  .char-count {
-    text-align: right; font-size: 0.72rem; color: var(--muted); margin-top: 6px;
-  }
-  .char-count.warn { color: var(--accent); }
-
-  /* ── Interests grid ── */
-  .interests-grid {
-    display: flex; flex-wrap: wrap; gap: 10px;
-  }
-
-  .interest-chip {
-    padding: 8px 18px; border-radius: 100px;
-    border: 1.5px solid var(--border); background: var(--surface);
-    font-size: 0.83rem; cursor: pointer;
-    transition: all 0.18s;
-    user-select: none;
-  }
-  .interest-chip:hover { border-color: var(--ink); }
-  .interest-chip.selected {
-    background: var(--ink); color: var(--paper);
-    border-color: var(--ink);
-  }
-  .interest-chip.selected:hover { background: var(--accent); border-color: var(--accent); }
-
-  /* ── Looking for ── */
-  .looking-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px;
-  }
-
-  .lf-card {
-    padding: 18px 16px; border: 1.5px solid var(--border);
-    border-radius: 6px; cursor: pointer;
-    transition: all 0.18s; background: var(--surface);
-    display: flex; flex-direction: column; gap: 8px;
-  }
-  .lf-card:hover { border-color: var(--ink); }
-  .lf-card.selected { border-color: var(--accent); background: rgba(255,77,28,0.04); }
-  .lf-card.selected .lf-icon { color: var(--accent); }
-
-  .lf-icon { font-size: 1.4rem; }
-  .lf-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.85rem; }
-  .lf-desc { font-size: 0.72rem; color: var(--muted); line-height: 1.4; }
-
-  /* ── Range slider ── */
-  .range-wrap { position: relative; padding-bottom: 4px; }
-
-  input[type="range"] {
-    -webkit-appearance: none;
-    height: 3px; border-radius: 2px;
-    background: var(--border); cursor: pointer;
-    margin: 8px 0;
-  }
-  input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 20px; height: 20px; border-radius: 50%;
-    background: var(--ink); border: 3px solid var(--paper);
-    box-shadow: 0 0 0 1.5px var(--ink);
-    transition: background 0.18s;
-  }
-  input[type="range"]::-webkit-slider-thumb:hover { background: var(--accent); box-shadow: 0 0 0 1.5px var(--accent); }
-
-  .range-labels {
-    display: flex; justify-content: space-between;
-    font-size: 0.72rem; color: var(--muted); margin-top: 4px;
-  }
-
-  .range-val {
-    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 2rem;
-    letter-spacing: -0.02em;
-  }
-  .range-unit { font-size: 0.85rem; font-weight: 300; color: var(--muted); margin-left: 4px; }
-
-  /* ── Toggle ── */
-  .toggle-row {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 18px 0; border-top: 1px solid var(--border);
-  }
-  .toggle-label strong { display: block; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.9rem; }
-  .toggle-label span { font-size: 0.78rem; color: var(--muted); }
-
-  .switch { position: relative; width: 48px; height: 26px; }
-  .switch input { opacity: 0; width: 0; height: 0; }
-  .switch-track {
-    position: absolute; inset: 0; border-radius: 13px;
-    background: var(--border); cursor: pointer;
-    transition: background 0.2s;
-  }
-  .switch-track::after {
-    content: '';
-    position: absolute; top: 3px; left: 3px;
-    width: 20px; height: 20px; border-radius: 50%;
-    background: white; transition: transform 0.2s;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-  }
-  .switch input:checked + .switch-track { background: var(--accent); }
-  .switch input:checked + .switch-track::after { transform: translateX(22px); }
-
-  /* ── Nav buttons ── */
-  .btn-row {
-    display: flex; align-items: center; gap: 16px; margin-top: 48px;
-  }
-
-  .btn-primary {
-    padding: 16px 36px;
-    background: var(--ink); color: var(--paper);
-    border: none; border-radius: 4px; cursor: pointer;
-    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.9rem; letter-spacing: 0.02em;
-    box-shadow: 4px 4px 0 var(--accent);
-    transition: transform 0.18s, box-shadow 0.18s;
-    position: relative; overflow: hidden;
-  }
-  .btn-primary:hover { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 var(--accent); }
-  .btn-primary:active { transform: none; box-shadow: 2px 2px 0 var(--accent); }
-  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-
-  .btn-secondary {
-    padding: 16px 28px;
-    background: transparent; color: var(--muted);
-    border: 1.5px solid var(--border); border-radius: 4px; cursor: pointer;
-    font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
-    transition: border-color 0.18s, color 0.18s;
-  }
-  .btn-secondary:hover { border-color: var(--ink); color: var(--ink); }
-
-  /* ── Error / toast ── */
-  .field-error { font-size: 0.78rem; color: var(--accent); margin-top: 6px; }
-
-  .toast {
-    position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(20px);
-    background: var(--accent); color: white; padding: 12px 24px; border-radius: 4px;
-    font-size: 0.85rem; opacity: 0; pointer-events: none;
-    transition: opacity 0.3s, transform 0.3s; z-index: 100;
-  }
-  .toast.show { opacity:1; transform: translateX(-50%) translateY(0); }
-  .toast.success { background: var(--success); }
-
-  /* ── Progress bar ── */
-  .progress-bar {
-    position: fixed; top: 0; left: 0; height: 3px;
-    background: var(--accent); z-index: 100;
-    transition: width 0.4s cubic-bezier(0.16,1,0.3,1);
-  }
-
-  @media (max-width: 768px) {
-    .layout { grid-template-columns: 1fr; }
-    .sidebar { position: relative; height: auto; padding: 24px; border-right: none; border-bottom: 1px solid var(--border); }
-    .steps { flex-direction: row; overflow-x: auto; gap: 0; }
-    .step { border-bottom: none; border-right: 1px solid var(--border); padding: 12px 20px; min-width: 120px; flex-direction: column; gap: 6px; }
-    .main { padding: 32px 24px; min-height: auto; }
-    .looking-grid { grid-template-columns: repeat(2, 1fr); }
-    .sidebar-foot { display: none; }
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Your Profile | NearMe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .step-hidden { display: none; }
+    </style>
 </head>
-<body>
-
-<div class="progress-bar" id="progressBar" style="width:33%"></div>
-
-<div class="layout">
-  <aside class="sidebar">
-    <div class="logo"><div class="logo-dot"></div> NearMe</div>
-
-    <div class="steps">
-      <div class="step active" id="step-indicator-1">
-        <div class="step-num">1</div>
-        <div>
-          <div class="step-label">Step 1</div>
-          <div class="step-title">Your Story</div>
+<body class="bg-slate-50 min-h-screen flex items-center justify-center p-6">
+    <div class="max-w-md w-full bg-white rounded-[2.5rem] p-10 shadow-xl shadow-slate-200/50">
+        <!-- Logo -->
+        <div class="flex justify-center mb-8">
+            <div class="flex items-center gap-2 text-3xl font-bold text-blue-600">
+                <i data-lucide="map-pin" class="fill-current"></i>
+                <span>NearMe</span>
+            </div>
         </div>
-      </div>
-      <div class="step" id="step-indicator-2">
-        <div class="step-num">2</div>
-        <div>
-          <div class="step-label">Step 2</div>
-          <div class="step-title">Interests</div>
+
+        <!-- Progress Bar -->
+        <div class="flex gap-2 mb-10">
+            <div id="prog-1" class="h-1.5 flex-1 rounded-full bg-blue-600"></div>
+            <div id="prog-2" class="h-1.5 flex-1 rounded-full bg-slate-100"></div>
+            <div id="prog-3" class="h-1.5 flex-1 rounded-full bg-slate-100"></div>
         </div>
-      </div>
-      <div class="step" id="step-indicator-3">
-        <div class="step-num">3</div>
-        <div>
-          <div class="step-label">Step 3</div>
-          <div class="step-title">Preferences</div>
+
+        <!-- Step 1: Bio -->
+        <div id="step-1" class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <h2 class="text-3xl font-black text-slate-900 leading-tight">Tell us about <br/>yourself.</h2>
+            <p class="text-slate-500">Your bio helps people nearby get a sense of who you are.</p>
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest">Bio</label>
+                <textarea id="bio-input" class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 focus:ring-4 focus:ring-blue-100 focus:border-blue-400 outline-none transition min-h-[120px]" placeholder="I'm a designer looking for lunch buddies..."></textarea>
+                <div class="flex justify-between mt-2">
+                    <span id="bio-error" class="text-xs text-red-500 hidden">Bio must be at least 10 chars.</span>
+                    <span class="text-xs text-slate-400 ml-auto">Min 10 / Max 200</span>
+                </div>
+            </div>
+            <button onclick="nextStep(2)" class="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl hover:bg-slate-800 transition">Continue</button>
         </div>
-      </div>
+
+        <!-- Step 2: Interests -->
+        <div id="step-2" class="step-hidden space-y-6">
+            <h2 class="text-3xl font-black text-slate-900 leading-tight">What are your <br/>passions?</h2>
+            <p class="text-slate-500">Select at least 2 interests.</p>
+            <div id="interests-grid" class="flex flex-wrap gap-2">
+                <!-- JS populated -->
+            </div>
+            <div class="flex gap-4 pt-4">
+                <button onclick="nextStep(1)" class="flex-1 font-bold text-slate-500 py-4">Back</button>
+                <button onclick="nextStep(3)" class="flex-[2] bg-slate-900 text-white font-bold py-4 rounded-2xl">Almost there</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Preferences -->
+        <div id="step-3" class="step-hidden space-y-6">
+            <h2 class="text-3xl font-black text-slate-900 leading-tight">Setting the <br/>radar.</h2>
+            
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest">Looking For</label>
+                <select id="looking-input" class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 outline-none">
+                    <option value="all">Everything</option>
+                    <option value="friendship">Friendship</option>
+                    <option value="networking">Networking</option>
+                    <option value="dating">Dating</option>
+                    <option value="collaboration">Collaboration</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest flex justify-between">
+                    <span>Search Radius</span>
+                    <span id="radius-val">5km</span>
+                </label>
+                <input type="range" id="radius-input" min="500" max="50000" step="500" value="5000" class="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600">
+            </div>
+
+            <div id="submit-error" class="text-sm text-red-500 hidden text-center font-medium"></div>
+
+            <div class="flex gap-4 pt-4">
+                <button onclick="nextStep(2)" class="flex-1 font-bold text-slate-500 py-4">Back</button>
+                <button onclick="submitOnboarding()" id="submit-btn" class="flex-[2] bg-blue-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2">
+                    <i data-lucide="check-circle" class="w-5 h-5"></i>
+                    Finish Setup
+                </button>
+            </div>
+        </div>
     </div>
 
-    <div class="sidebar-foot">
-      Your profile is only visible to people nearby while you're active. You can change everything later.
-    </div>
-  </aside>
+    <script>
+        lucide.createIcons();
+        const interests = ['Tech', 'Music', 'Coffee', 'Hiking', 'Gaming', 'Art', 'Design', 'Travel', 'Food', 'Startups', 'Fitness', 'Reading', 'Coding'];
+        let selectedInterests = [];
+        let currentStep = 1;
 
-  <main class="main">
+        const grid = document.getElementById('interests-grid');
+        interests.forEach(i => {
+            const btn = document.createElement('button');
+            btn.textContent = i;
+            btn.className = 'px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-medium hover:border-blue-400 transition';
+            btn.onclick = () => {
+                if(selectedInterests.includes(i)) {
+                    selectedInterests = selectedInterests.filter(x => x !== i);
+                    btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
+                } else {
+                    selectedInterests.push(i);
+                    btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+                }
+            };
+            grid.appendChild(btn);
+        });
 
-    <!-- ── Panel 1: Bio ── -->
-    <div class="panel active" id="panel-1">
-      <div class="panel-eyebrow">Step 1 of 3</div>
-      <h1 class="panel-title">Tell us<br>who you are.</h1>
-      <p class="panel-sub">A short bio helps nearby people know if you'd vibe. Be yourself.</p>
+        document.getElementById('radius-input').oninput = (e) => {
+            document.getElementById('radius-val').textContent = (e.target.value / 1000) + 'km';
+        };
 
-      <div class="field">
-        <label for="bio">Your bio</label>
-        <textarea id="bio" placeholder="e.g. Coffee-fuelled designer obsessed with street photography and random city walks…" maxlength="200" rows="5"></textarea>
-        <div class="char-count"><span id="bio-count">0</span> / 200</div>
-        <div class="field-error" id="bio-error"></div>
-      </div>
+        function nextStep(s) {
+            if (s === 2 && document.getElementById('bio-input').value.length < 10) {
+                document.getElementById('bio-error').classList.remove('hidden');
+                return;
+            }
+            document.getElementById(`step-${currentStep}`).classList.add('step-hidden');
+            document.getElementById(`step-${s}`).classList.remove('step-hidden');
+            document.getElementById(`prog-${s}`).classList.replace('bg-slate-100', 'bg-blue-600');
+            currentStep = s;
+        }
 
-      <div class="btn-row">
-        <button class="btn-primary" onclick="goStep(2)">Continue →</button>
-      </div>
-    </div>
+        async function submitOnboarding() {
+            const btn = document.getElementById('submit-btn');
+            const err = document.getElementById('submit-error');
+            
+            if (selectedInterests.length < 2) {
+                err.textContent = "Please select at least 2 interests.";
+                err.classList.remove('hidden');
+                return;
+            }
 
-    <!-- ── Panel 2: Interests ── -->
-    <div class="panel" id="panel-2">
-      <div class="panel-eyebrow">Step 2 of 3</div>
-      <h1 class="panel-title">What lights<br>you up?</h1>
-      <p class="panel-sub">Pick at least 2 interests. These help surface the right people.</p>
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader-2" class="animate-spin"></i> Saving...`;
+            lucide.createIcons();
 
-      <div class="field">
-        <div class="interests-grid" id="interests-grid"></div>
-        <div class="field-error" id="interests-error"></div>
-      </div>
+            try {
+                const res = await fetch('/api/users/onboarding', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        bio: document.getElementById('bio-input').value,
+                        interests: selectedInterests,
+                        lookingFor: document.getElementById('looking-input').value,
+                        searchRadius: parseInt(document.getElementById('radius-input').value),
+                        isVisible: true
+                    })
+                });
 
-      <div class="btn-row">
-        <button class="btn-secondary" onclick="goStep(1)">← Back</button>
-        <button class="btn-primary" onclick="goStep(3)">Continue →</button>
-      </div>
-    </div>
-
-    <!-- ── Panel 3: Preferences ── -->
-    <div class="panel" id="panel-3">
-      <div class="panel-eyebrow">Step 3 of 3</div>
-      <h1 class="panel-title">How do you<br>want to connect?</h1>
-      <p class="panel-sub">Set your intent and discovery preferences.</p>
-
-      <div class="field">
-        <label>I'm open to</label>
-        <div class="looking-grid" id="looking-grid"></div>
-        <div class="field-error" id="lf-error"></div>
-      </div>
-
-      <div class="field">
-        <label>Search radius</label>
-        <div class="range-val" id="radius-display">5<span class="range-unit">km</span></div>
-        <div class="range-wrap">
-          <input type="range" id="radius" min="500" max="50000" step="500" value="5000"/>
-          <div class="range-labels"><span>500m</span><span>50km</span></div>
-        </div>
-      </div>
-
-      <div class="toggle-row">
-        <div class="toggle-label">
-          <strong>Show me on the map</strong>
-          <span>Other users can see you nearby</span>
-        </div>
-        <label class="switch">
-          <input type="checkbox" id="isVisible" checked/>
-          <div class="switch-track"></div>
-        </label>
-      </div>
-
-      <div class="btn-row">
-        <button class="btn-secondary" onclick="goStep(2)">← Back</button>
-        <button class="btn-primary" id="submit-btn" onclick="submitProfile()">Launch my profile 🚀</button>
-      </div>
-    </div>
-
-  </main>
-</div>
-
-<div class="toast" id="toast"></div>
-
-<script>
-  // ── State ──────────────────────────────────────────────────────────────────
-  let currentStep = 1;
-  const selectedInterests = new Set();
-  let lookingFor = '';
-
-  // ── Interests data ─────────────────────────────────────────────────────────
-  const INTERESTS = [
-    '☕ Coffee', '📸 Photography', '🎵 Music', '🎮 Gaming', '🏃 Running',
-    '🧘 Yoga', '🍜 Foodie', '🎨 Art', '💻 Tech', '📚 Reading',
-    '✈️ Travel', '🐶 Pets', '🌿 Nature', '🎸 Guitar', '🏋️ Fitness',
-    '🎬 Films', '🧗 Climbing', '🚴 Cycling', '🎭 Theatre', '🍻 Craft Beer',
-    '🌙 Nightlife', '🤿 Diving', '🧩 Puzzles', '🎤 Karaoke', '📝 Writing',
-    '🔬 Science', '🏄 Surfing', '🌱 Sustainability', '🎯 Entrepreneurship', '🤝 Volunteering'
-  ];
-
-  const LOOKING_FOR = [
-    { value: 'friendship',     icon: '👋', name: 'Friendship',     desc: 'Casual connections & hangouts' },
-    { value: 'networking',     icon: '💼', name: 'Networking',      desc: 'Professional & career growth' },
-    { value: 'dating',         icon: '❤️', name: 'Dating',          desc: 'Romantic connections' },
-    { value: 'collaboration',  icon: '🤝', name: 'Collab',          desc: 'Build things together' },
-    { value: 'all',            icon: '✨', name: 'Open to all',     desc: 'Whatever happens, happens' },
-  ];
-
-  // ── Render interests ───────────────────────────────────────────────────────
-  const grid = document.getElementById('interests-grid');
-  INTERESTS.forEach(i => {
-    // Strip leading emoji + space reliably using Unicode segmentation
-    const label = i.replace(/^\S+\s/, '').trim();
-    const value = label.toLowerCase();
-
-    const chip = document.createElement('div');
-    chip.className = 'interest-chip';
-    chip.textContent = i;
-    chip.dataset.value = value;
-    chip.onclick = () => {
-      if (selectedInterests.has(value)) {
-        selectedInterests.delete(value);
-        chip.classList.remove('selected');
-      } else {
-        selectedInterests.add(value);
-        chip.classList.add('selected');
-      }
-    };
-    grid.appendChild(chip);
-  });
-
-  // ── Render looking-for ─────────────────────────────────────────────────────
-  const lfGrid = document.getElementById('looking-grid');
-  LOOKING_FOR.forEach(lf => {
-    const card = document.createElement('div');
-    card.className = 'lf-card';
-    card.innerHTML = `<div class="lf-icon">${lf.icon}</div><div class="lf-name">${lf.name}</div><div class="lf-desc">${lf.desc}</div>`;
-    card.onclick = () => {
-      document.querySelectorAll('.lf-card').forEach(c => c.classList.remove('selected'));
-      card.classList.add('selected');
-      lookingFor = lf.value;
-    };
-    lfGrid.appendChild(card);
-  });
-
-  // ── Bio char counter ───────────────────────────────────────────────────────
-  document.getElementById('bio').addEventListener('input', function() {
-    const len = this.value.length;
-    const counter = document.getElementById('bio-count');
-    counter.textContent = len;
-    counter.parentElement.classList.toggle('warn', len > 180);
-  });
-
-  // ── Range slider ───────────────────────────────────────────────────────────
-  document.getElementById('radius').addEventListener('input', function() {
-    const km = (this.value / 1000).toFixed(1).replace(/\.0$/, '');
-    document.getElementById('radius-display').innerHTML = `${km}<span class="range-unit">km</span>`;
-  });
-
-  // ── Step navigation ────────────────────────────────────────────────────────
-  function goStep(n) {
-    // Only validate when moving forward
-    if (n > currentStep && !validateStep(currentStep)) return;
-
-    // Deactivate current panel
-    document.getElementById(`panel-${currentStep}`).classList.remove('active');
-
-    // Update step indicator for the step we're leaving:
-    // mark as done only if it's behind the new step, otherwise reset to inactive
-    const leavingIndicator = document.getElementById(`step-indicator-${currentStep}`);
-    leavingIndicator.classList.remove('active', 'done');
-    if (currentStep < n) leavingIndicator.classList.add('done');
-
-    currentStep = n;
-
-    // Activate new panel
-    document.getElementById(`panel-${n}`).classList.add('active');
-
-    // New step indicator: active; clear done in case we went back then forward
-    const arrivingIndicator = document.getElementById(`step-indicator-${n}`);
-    arrivingIndicator.classList.remove('done');
-    arrivingIndicator.classList.add('active');
-
-    // Steps ahead of current should be plain inactive
-    [1, 2, 3].forEach(s => {
-      if (s > n) {
-        const ind = document.getElementById(`step-indicator-${s}`);
-        ind.classList.remove('active', 'done');
-      }
-    });
-
-    const widths = { 1: '33%', 2: '66%', 3: '100%' };
-    document.getElementById('progressBar').style.width = widths[n];
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  // ── Validation ─────────────────────────────────────────────────────────────
-  function validateStep(step) {
-    if (step === 1) {
-      const bio = document.getElementById('bio').value.trim();
-      const err = document.getElementById('bio-error');
-      if (bio.length < 10) { err.textContent = 'Please write at least 10 characters.'; return false; }
-      err.textContent = '';
-      return true;
-    }
-    if (step === 2) {
-      const err = document.getElementById('interests-error');
-      if (selectedInterests.size < 2) { err.textContent = 'Please select at least 2 interests.'; return false; }
-      err.textContent = '';
-      return true;
-    }
-    return true;
-  }
-
-  // ── Toast ──────────────────────────────────────────────────────────────────
-  function showToast(msg, success = false) {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.className = 'toast show' + (success ? ' success' : '');
-    setTimeout(() => t.className = 'toast', 4000);
-  }
-
-  // ── Submit ─────────────────────────────────────────────────────────────────
-  async function submitProfile() {
-    if (!lookingFor) {
-      document.getElementById('lf-error').textContent = 'Please pick an option.';
-      return;
-    }
-    document.getElementById('lf-error').textContent = '';
-
-    const btn = document.getElementById('submit-btn');
-    btn.disabled = true;
-    btn.textContent = 'Saving…';
-
-    const payload = {
-      bio:          document.getElementById('bio').value.trim(),
-      interests:    [...selectedInterests],
-      lookingFor,
-      searchRadius: parseInt(document.getElementById('radius').value, 10),
-      isVisible:    document.getElementById('isVisible').checked,
-    };
-
-    try {
-      const res = await fetch('/api/users/onboarding', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        credentials: 'include',
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        showToast(data.error || 'Something went wrong.');
-        btn.disabled = false; btn.textContent = 'Launch my profile 🚀';
-        return;
-      }
-
-      showToast('Profile saved! Taking you to the map…', true);
-      setTimeout(() => window.location.href = '/app', 1200);
-    } catch (e) {
-      showToast('Network error. Please try again.');
-      btn.disabled = false; btn.textContent = 'Launch my profile 🚀';
-    }
-  }
-</script>
+                if (res.ok) window.location.href = '/app';
+                else {
+                    const data = await res.json();
+                    err.textContent = data.error || "Update failed";
+                    err.classList.remove('hidden');
+                    btn.disabled = false;
+                    btn.textContent = "Finish Setup";
+                }
+            } catch (e) {
+                err.textContent = "Connection error.";
+                err.classList.remove('hidden');
+                btn.disabled = false;
+            }
+        }
+    </script>
 </body>
 </html>
