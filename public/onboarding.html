@@ -387,18 +387,7 @@
         </div>
       </div>
 
-      <div class="field">
-        <label for="nameInput">Display name</label>
-        <input type="text" id="nameInput" maxlength="100" placeholder="How should people find you?" autocomplete="name" />
-      </div>
-
-      <div class="field">
-        <label for="bioInput">Short bio <span style="font-weight:300;text-transform:none;letter-spacing:0">(required)</span></label>
-        <textarea id="bioInput" rows="3" maxlength="300" placeholder="What brings you here? What are you up to?"></textarea>
-        <div class="char-count" id="bioCount">0 / 300</div>
-      </div>
-
-      <div class="form-error" id="step1Error">Please fill in both your name and bio.</div>
+      <div class="form-error" id="step1Error">Could not load your profile. Please refresh.</div>
 
       <div class="nav-buttons">
         <button class="btn btn-primary" id="step1Next" onclick="goToStep(2)">
@@ -467,21 +456,22 @@
     const TOTAL = 3;
     let selectedInterests = [];
     let locationGranted = false;
+    let googleName = '';
 
     // ── On load ─────────────────────────────────────────────────────────────
     (async () => {
-      // Fetch current user
       try {
         const res = await fetch('/auth/me');
         if (!res.ok) { window.location.href = '/'; return; }
         const user = await res.json();
-        document.getElementById('profileName').textContent = user.name || '';
+        googleName = user.name || '';
+        document.getElementById('profileName').textContent = googleName;
         document.getElementById('profileEmail').textContent = user.email || '';
-        document.getElementById('nameInput').value = user.name || '';
         const img = document.getElementById('avatarImg');
         if (user.avatar) img.src = user.avatar;
       } catch(e) {
         console.warn('Could not load user', e);
+        document.getElementById('step1Error').classList.add('visible');
       }
 
       // Build interest chips
@@ -497,15 +487,6 @@
 
       updateProgress();
     })();
-
-    // ── Bio counter ─────────────────────────────────────────────────────────
-    const bioInput = document.getElementById('bioInput');
-    const bioCount = document.getElementById('bioCount');
-    bioInput.addEventListener('input', () => {
-      const len = bioInput.value.length;
-      bioCount.textContent = `${len} / 300`;
-      bioCount.classList.toggle('warn', len > 260);
-    });
 
     // ── Interest toggle ──────────────────────────────────────────────────────
     function toggleInterest(chip, value) {
@@ -524,18 +505,6 @@
 
     // ── Step navigation ──────────────────────────────────────────────────────
     function goToStep(n) {
-      // Validate before leaving step 1
-      if (currentStep === 1 && n > 1) {
-        const name = document.getElementById('nameInput').value.trim();
-        const bio  = bioInput.value.trim();
-        const err  = document.getElementById('step1Error');
-        if (!name || !bio) {
-          err.classList.add('visible');
-          return;
-        }
-        err.classList.remove('visible');
-      }
-
       document.getElementById(`step${currentStep}`).classList.remove('active');
       currentStep = n;
       document.getElementById(`step${n}`).classList.add('active');
@@ -621,14 +590,11 @@
       btn.classList.add('loading');
       btn.disabled = true;
 
-      const name = document.getElementById('nameInput').value.trim();
-      const bio  = bioInput.value.trim();
-
       try {
         const res = await fetch('/api/users/me', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, bio, interests: selectedInterests }),
+          body: JSON.stringify({ name: googleName, interests: selectedInterests }),
         });
 
         if (!res.ok) throw new Error('Save failed');
