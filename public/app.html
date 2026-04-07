@@ -483,6 +483,215 @@
     .user-menu-item:last-child { border-bottom: none; }
     .user-menu-item:hover { background: var(--panel); }
     .user-menu-item.danger { color: var(--rust); }
+
+    /* ── My Profile panel ── */
+    .profile-panel-overlay {
+      position: fixed; inset: 0;
+      background: rgba(13,13,13,0.45);
+      z-index: 300;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .profile-panel-overlay.open { opacity: 1; pointer-events: all; }
+
+    .profile-panel {
+      position: fixed;
+      right: 0; top: 0; bottom: 0;
+      width: 380px;
+      background: var(--paper);
+      z-index: 301;
+      transform: translateX(100%);
+      transition: transform 0.35s cubic-bezier(0.77,0,0.175,1);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .profile-panel.open { transform: translateX(0); }
+
+    @media (max-width: 480px) {
+      .profile-panel { width: 100%; }
+    }
+
+    .pp-header {
+      padding: 28px 28px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .pp-title {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 1.1rem;
+      letter-spacing: -0.01em;
+    }
+    .pp-close {
+      width: 32px; height: 32px;
+      border: 1px solid var(--border);
+      background: transparent;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      color: var(--muted);
+      transition: border-color 0.2s, color 0.2s;
+      flex-shrink: 0;
+    }
+    .pp-close:hover { border-color: var(--ink); color: var(--ink); }
+
+    .pp-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 28px 32px;
+    }
+    .pp-body::-webkit-scrollbar { width: 4px; }
+    .pp-body::-webkit-scrollbar-thumb { background: var(--border); }
+
+    /* avatar row */
+    .pp-avatar-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 28px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .pp-avatar {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      overflow: hidden;
+      flex-shrink: 0;
+      background: var(--ink);
+    }
+    .pp-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .pp-avatar-info { flex: 1; min-width: 0; }
+    .pp-google-name {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 1rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .pp-email {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* form fields */
+    .pp-field { margin-bottom: 24px; }
+    .pp-label {
+      display: block;
+      font-family: 'Syne', sans-serif;
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .pp-textarea {
+      width: 100%;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-bottom: 2px solid var(--ink);
+      color: var(--ink);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 300;
+      padding: 12px 14px;
+      outline: none;
+      resize: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      line-height: 1.6;
+    }
+    .pp-textarea:focus {
+      border-color: var(--amber);
+      box-shadow: 0 0 0 3px rgba(232,160,32,0.2);
+    }
+    .pp-char {
+      text-align: right;
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 5px;
+    }
+    .pp-char.warn { color: var(--rust); }
+
+    /* interests grid */
+    .pp-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .pp-chip {
+      font-family: 'Syne', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      border: 1.5px solid var(--border);
+      padding: 6px 13px;
+      cursor: pointer;
+      background: transparent;
+      color: var(--muted);
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      user-select: none;
+    }
+    .pp-chip:hover { border-color: var(--amber); color: var(--ink); }
+    .pp-chip.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+    /* save button */
+    .pp-footer {
+      padding: 16px 28px 24px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .pp-save {
+      font-family: 'Syne', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 14px 28px;
+      background: var(--ink);
+      color: var(--paper);
+      border: 2px solid var(--ink);
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: color 0.25s;
+      flex: 1;
+    }
+    .pp-save::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: var(--amber);
+      transform: translateX(-100%);
+      transition: transform 0.3s cubic-bezier(0.77,0,0.175,1);
+      z-index: 0;
+    }
+    .pp-save:hover { color: var(--ink); }
+    .pp-save:hover::after { transform: translateX(0); }
+    .pp-save span { position: relative; z-index: 1; }
+    .pp-save:disabled { opacity: 0.4; cursor: not-allowed; }
+    .pp-save:disabled::after { display: none; }
+    .pp-save-status {
+      font-size: 0.78rem;
+      color: var(--sage);
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      min-width: 60px;
+      display: none;
+    }
+    .pp-save-status.visible { display: block; }
+    .pp-save-status.err { color: var(--rust); }
   </style>
 </head>
 <body>
@@ -505,7 +714,7 @@
           </div>
           <div class="user-menu" id="userMenu">
             <span class="user-menu-item" style="font-family:'Syne',sans-serif;font-weight:700;font-size:0.78rem;letter-spacing:.06em;cursor:default;color:var(--muted)" id="menuName">—</span>
-            <a href="/onboarding" class="user-menu-item">Edit profile</a>
+            <span class="user-menu-item" id="editProfileBtn">My profile</span>
             <span class="user-menu-item danger" id="logoutBtn">Sign out</span>
           </div>
         </div>
@@ -567,6 +776,42 @@
     </div>
   </div>
 
+  <!-- ── My Profile panel ── -->
+  <div class="profile-panel-overlay" id="ppOverlay" onclick="closeProfilePanel()"></div>
+  <div class="profile-panel" id="profilePanel">
+    <div class="pp-header">
+      <span class="pp-title">My Profile</span>
+      <button class="pp-close" onclick="closeProfilePanel()">✕</button>
+    </div>
+    <div class="pp-body">
+      <!-- Avatar + name row (read-only from Google) -->
+      <div class="pp-avatar-row">
+        <div class="pp-avatar"><img id="ppAvatar" src="" alt="" /></div>
+        <div class="pp-avatar-info">
+          <div class="pp-google-name" id="ppName"></div>
+          <div class="pp-email" id="ppEmail"></div>
+        </div>
+      </div>
+
+      <!-- Bio -->
+      <div class="pp-field">
+        <label class="pp-label" for="ppBio">About me <span style="font-weight:300;text-transform:none;letter-spacing:0;font-family:'DM Sans',sans-serif">(up to 300 chars)</span></label>
+        <textarea class="pp-textarea" id="ppBio" rows="4" maxlength="300" placeholder="Tell people around you who you are…"></textarea>
+        <div class="pp-char" id="ppBioChar">0 / 300</div>
+      </div>
+
+      <!-- Interests -->
+      <div class="pp-field">
+        <label class="pp-label">Interests <span style="font-weight:300;text-transform:none;letter-spacing:0;font-family:'DM Sans',sans-serif">(up to 10)</span></label>
+        <div class="pp-chips" id="ppChips"></div>
+      </div>
+    </div>
+    <div class="pp-footer">
+      <button class="pp-save" id="ppSaveBtn" onclick="saveProfile()"><span>Save changes</span></button>
+      <span class="pp-save-status" id="ppStatus"></span>
+    </div>
+  </div>
+
   <!-- ── Toast ── -->
   <div class="toast" id="toast"></div>
 
@@ -578,10 +823,19 @@
     const userMarkers = new Map(); // userId → marker
     let activeUserId = null;
     let currentRadius = 3000;
+    let me = null; // current logged-in user
+
+    const ALL_INTERESTS = [
+      'Coffee', 'Music', 'Design', 'Tech', 'Reading', 'Startups',
+      'Art', 'Film', 'Photography', 'Travel', 'Food', 'Fitness',
+      'Gaming', 'Nature', 'Writing', 'Yoga', 'Dance', 'Sports',
+      'Coding', 'Fashion', 'Theatre', 'Science', 'Mindfulness', 'Languages'
+    ];
 
     // ── Init ─────────────────────────────────────────────────────────────────
     (async () => {
       await loadMe();
+      buildProfileChips();
       initMap();
       initSocket();
       startGeolocation();
@@ -592,11 +846,109 @@
       try {
         const res = await fetch('/auth/me');
         if (!res.ok) { window.location.href = '/'; return; }
-        const user = await res.json();
-        document.getElementById('topAvatar').src = user.avatar || '';
-        document.getElementById('menuName').textContent = user.name || 'You';
+        me = await res.json();
+        document.getElementById('topAvatar').src = me.avatar || '';
+        document.getElementById('menuName').textContent = me.name || 'You';
       } catch(e) {}
     }
+
+    // ── Profile panel ─────────────────────────────────────────────────────────
+    const INTERESTS_LIST = ALL_INTERESTS;
+    let ppSelectedInterests = [];
+
+    function buildProfileChips() {
+      const grid = document.getElementById('ppChips');
+      INTERESTS_LIST.forEach(interest => {
+        const chip = document.createElement('button');
+        chip.className = 'pp-chip';
+        chip.textContent = interest;
+        chip.dataset.value = interest;
+        chip.addEventListener('click', () => {
+          const idx = ppSelectedInterests.indexOf(interest);
+          if (idx === -1) {
+            if (ppSelectedInterests.length >= 10) return;
+            ppSelectedInterests.push(interest);
+            chip.classList.add('on');
+          } else {
+            ppSelectedInterests.splice(idx, 1);
+            chip.classList.remove('on');
+          }
+        });
+        grid.appendChild(chip);
+      });
+    }
+
+    function openProfilePanel() {
+      if (!me) return;
+      // Populate fields from current me
+      document.getElementById('ppAvatar').src = me.avatar || '';
+      document.getElementById('ppName').textContent = me.name || '';
+      document.getElementById('ppEmail').textContent = me.email || '';
+
+      const bioEl = document.getElementById('ppBio');
+      bioEl.value = me.bio || '';
+      document.getElementById('ppBioChar').textContent = `${bioEl.value.length} / 300`;
+
+      // Reset interest chips to match me.interests
+      ppSelectedInterests = [...(me.interests || [])];
+      document.querySelectorAll('.pp-chip').forEach(chip => {
+        chip.classList.toggle('on', ppSelectedInterests.includes(chip.dataset.value));
+      });
+
+      // Clear status
+      const status = document.getElementById('ppStatus');
+      status.textContent = '';
+      status.className = 'pp-save-status';
+
+      document.getElementById('profilePanel').classList.add('open');
+      document.getElementById('ppOverlay').classList.add('open');
+    }
+
+    function closeProfilePanel() {
+      document.getElementById('profilePanel').classList.remove('open');
+      document.getElementById('ppOverlay').classList.remove('open');
+    }
+
+    let ppSaving = false;
+    async function saveProfile() {
+      if (ppSaving) return;
+      ppSaving = true;
+
+      const btn = document.getElementById('ppSaveBtn');
+      const status = document.getElementById('ppStatus');
+      btn.disabled = true;
+      status.className = 'pp-save-status';
+      status.textContent = '';
+
+      const bio = document.getElementById('ppBio').value.trim();
+
+      try {
+        const res = await fetch('/api/users/me', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bio, interests: ppSelectedInterests }),
+        });
+        if (!res.ok) throw new Error('Save failed');
+        me = await res.json();
+        status.textContent = 'Saved ✓';
+        status.className = 'pp-save-status visible';
+        setTimeout(() => status.classList.remove('visible'), 2500);
+      } catch(e) {
+        status.textContent = 'Error saving';
+        status.className = 'pp-save-status visible err';
+      } finally {
+        ppSaving = false;
+        btn.disabled = false;
+      }
+    }
+
+    // Bio char counter
+    document.getElementById('ppBio').addEventListener('input', () => {
+      const len = document.getElementById('ppBio').value.length;
+      const el = document.getElementById('ppBioChar');
+      el.textContent = `${len} / 300`;
+      el.classList.toggle('warn', len > 260);
+    });
 
     // ── Map ───────────────────────────────────────────────────────────────────
     function initMap() {
@@ -871,6 +1223,10 @@
     });
     document.addEventListener('click', () => {
       document.getElementById('userMenu').classList.remove('open');
+    });
+    document.getElementById('editProfileBtn').addEventListener('click', () => {
+      document.getElementById('userMenu').classList.remove('open');
+      openProfilePanel();
     });
     document.getElementById('logoutBtn').addEventListener('click', async () => {
       await fetch('/auth/logout', { method: 'POST' });
