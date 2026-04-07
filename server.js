@@ -6,338 +6,249 @@ const mongoose   = require('mongoose');
 const session    = require('express-session');
 const MongoStore = require('connect-mongo');
 const passport   = require('passport');
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
 const helmet     = require('helmet');
 const cors       = require('cors');
 const rateLimit  = require('express-rate-limit');
-const morgan     = require('morgan');
 const path       = require('path');
-const fs         = require('fs');
 const User       = require('./models/User');
 
-// ─── Logger ───────────────────────────────────────────────────────────────────
-const LOG_LEVEL = process.env.LOG_LEVEL || 'info'; // debug | info | warn | error
-const LEVELS    = { debug: 0, info: 1, warn: 2, error: 3 };
+// ── Logger ────────────────────────────────────────────────────────────────────
+const LEVELS = { error:0, warn:1, info:2, http:3, debug:4 };
+const LOG_LEVEL = LEVELS[process.env.LOG_LEVEL] ?? 2;
 
-const ts  = () => new Date().toISOString();
-const log = {
-  debug: (...a) => LEVELS[LOG_LEVEL] <= 0 && console.debug(`[${ts()}] [DEBUG]`, ...a),
-  info:  (...a) => LEVELS[LOG_LEVEL] <= 1 && console.log  (`[${ts()}] [INFO ]`, ...a),
-  warn:  (...a) => LEVELS[LOG_LEVEL] <= 2 && console.warn (`[${ts()}] [WARN ]`, ...a),
-  error: (...a) => LEVELS[LOG_LEVEL] <= 3 && console.error(`[${ts()}] [ERROR]`, ...a),
-};
+function log(level, msg, meta = {}) {
+  if ((LEVELS[level] ?? 99) > LOG_LEVEL) return;
+  const ts    = new Date().toISOString();
+  const label = level.toUpperCase().padEnd(5);
+  const extra = Object.keys(meta).length ? ' ' + JSON.stringify(meta) : '';
+  console.log(`[${ts}] [${label}] ${msg}${extra}`);
+}
 
-// ─── Logs directory ───────────────────────────────────────────────────────────
-const LOGS_DIR = path.join(__dirname, 'logs');
-if (!fs.existsSync(LOGS_DIR)) fs.mkdirSync(LOGS_DIR, { recursive: true });
-
-// ─── Bootstrap ────────────────────────────────────────────────────────────────
-log.info('Starting NearMe server…');
-log.info(`Node ${process.version} | ENV=${process.env.NODE_ENV || 'development'} | LOG_LEVEL=${LOG_LEVEL}`);
-
+// ── App setup ─────────────────────────────────────────────────────────────────
 const app    = express();
-app.set('trust proxy', 1);
 const server = http.createServer(app);
 const io     = new Server(server, {
-  cors: { origin: process.env.APP_URL || '*', methods: ['GET', 'POST'] }
+  cors: { origin: process.env.APP_URL || '*', methods: ['GET','POST'] }
 });
 
-// ─── HTTP request logging (morgan) ───────────────────────────────────────────
-// Console: coloured one-liner per request
-app.use(morgan((tokens, req, res) => {
-  const status = tokens.status(req, res);
-  const color  = status >= 500 ? '\x1b[31m'
-               : status >= 400 ? '\x1b[33m'
-               : status >= 300 ? '\x1b[36m'
-               :                 '\x1b[32m';
-  return [
-    `[${ts()}] [HTTP ]`,
-    req.method.padEnd(6),
-    `${color}${status}\x1b[0m`,
-    tokens.url(req, res),
-    `${tokens['response-time'](req, res)}ms`,
-    `ip=${tokens['remote-addr'](req, res)}`,
-    req.user ? `user=${req.user._id}` : 'guest',
-  ].join(' ');
-}));
+app.set('trust proxy', 1);
 
-// File: full combined log
-const accessLog = fs.createWriteStream(path.join(LOGS_DIR, 'access.log'), { flags: 'a' });
-app.use(morgan('combined', { stream: accessLog }));
-
-// ─── Security ─────────────────────────────────────────────────────────────────
+// ── Security ──────────────────────────────────────────────────────────────────
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
-      defaultSrc:  ["'self'"],
-      scriptSrc:   ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://cdnjs.cloudflare.com", "https://accounts.google.com"],
-      styleSrc:    ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
-      fontSrc:     ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
-      imgSrc:      ["'self'", "data:", "https:", "blob:"],
-      connectSrc:  ["'self'", "wss:", "ws:", "https:"],
-      frameSrc:    ["'none'"],
+      defaultSrc: ["'self'"],
+      scriptSrc:  ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://cdnjs.cloudflare.com"],
+      styleSrc:   ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
+      fontSrc:    ["'self'", "https://fonts.gstatic.com"],
+      imgSrc:     ["'self'", "data:", "https:", "blob:"],
+      connectSrc: ["'self'", "wss:", "ws:", "https:"],
+      frameSrc:   ["'none'"],
     }
   }
 }));
+app.use(cors({ origin: process.env.APP_URL || '*', credentials: true }));
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 400, standardHeaders: true, legacyHeaders: false }));
 
-app.use(cors());
+// ── Body parsing ──────────────────────────────────────────────────────────────
+app.use(express.json({ limit: '50kb' }));
+app.use(express.urlencoded({ extended: true, limit: '50kb' }));
 
-app.use(rateLimit({
-  windowMs:        15 * 60 * 1000,
-  max:             300,
-  standardHeaders: true,
-  legacyHeaders:   false,
-  validate:        { xForwardedForHeader: false },
-  handler: (req, res) => {
-    log.warn(`Rate limit exceeded — ip=${req.ip} path=${req.path}`);
-    res.status(429).json({ error: 'Too many requests, please try again later.' });
-  }
-}));
-
-// ─── Body parsing ─────────────────────────────────────────────────────────────
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// ─── Static files ─────────────────────────────────────────────────────────────
-// Guard protected HTML pages from being served directly by express.static.
-// Without this, /app.html and /onboarding.html bypass all route-level auth.
-const PROTECTED_PAGES = ['/app.html', '/onboarding.html'];
+// ── Request logger ────────────────────────────────────────────────────────────
 app.use((req, res, next) => {
-  if (PROTECTED_PAGES.includes(req.path)) {
-    if (!req.isAuthenticated()) {
-      log.warn(`Direct static access blocked — ${req.path} ip=${req.ip}`);
-      return res.redirect('/');
-    }
-  }
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms   = Date.now() - start;
+    const uid  = req.user?._id?.toString() ?? 'guest';
+    const code = res.statusCode;
+    log('http', `${req.method.padEnd(6)} ${code} ${req.path}`, { ms, ip: req.ip, user: uid });
+  });
   next();
 });
-app.use(express.static(path.join(__dirname, 'public')));
 
-// ─── MongoDB ──────────────────────────────────────────────────────────────────
-// Enable query-level debug logging when LOG_LEVEL=debug
-mongoose.set('debug', (col, method, query) => {
-  log.debug(`[Mongoose] ${col}.${method}`, JSON.stringify(query));
-});
+// ── Static files ──────────────────────────────────────────────────────────────
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d', etag: true }));
 
-mongoose.connection.on('connected',    () => log.info ('✅ MongoDB connected'));
-mongoose.connection.on('disconnected', () => log.warn ('⚠️  MongoDB disconnected'));
-mongoose.connection.on('reconnected',  () => log.info ('🔄 MongoDB reconnected'));
-mongoose.connection.on('error',       (e) => log.error('❌ MongoDB error:', e.message));
-
+// ── MongoDB ───────────────────────────────────────────────────────────────────
 mongoose.connect(process.env.MONGODB_URI)
-  .catch(err => {
-    log.error('❌ MongoDB initial connection failed:', err.message);
-    process.exit(1);
-  });
+  .then(() => log('info', '✅ MongoDB connected'))
+  .catch(err => log('error', '❌ MongoDB connection failed', { err: err.message }));
 
-// ─── Session ──────────────────────────────────────────────────────────────────
-app.use(session({
-  secret:            process.env.SESSION_SECRET || 'nearme_secret_dev',
+mongoose.connection.on('disconnected', () => log('warn', '⚠️  MongoDB disconnected'));
+mongoose.connection.on('reconnected',  () => log('info', '✅ MongoDB reconnected'));
+
+// ── Sessions ──────────────────────────────────────────────────────────────────
+const sessionMiddleware = session({
+  secret:            process.env.SESSION_SECRET || 'nearme_dev_secret_change_in_prod',
   resave:            false,
   saveUninitialized: false,
-  store: MongoStore.create({
-    mongoUrl:   process.env.MONGODB_URI,
-    touchAfter: 24 * 3600,
-  }),
+  store:             MongoStore.create({ mongoUrl: process.env.MONGODB_URI, ttl: 7 * 24 * 3600 }),
   cookie: {
     secure:   process.env.NODE_ENV === 'production',
     httpOnly: true,
-    maxAge:   7 * 24 * 60 * 60 * 1000
+    sameSite: 'lax',
+    maxAge:   7 * 24 * 60 * 60 * 1000,
   }
-}));
+});
+app.use(sessionMiddleware);
 
-// ─── Passport ─────────────────────────────────────────────────────────────────
+// ── Passport ──────────────────────────────────────────────────────────────────
 app.use(passport.initialize());
 app.use(passport.session());
 
 passport.use(new GoogleStrategy({
   clientID:     process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL:  process.env.GOOGLE_CALLBACK_URL || '/auth/google/callback'
+  callbackURL:  process.env.GOOGLE_CALLBACK_URL || '/auth/google/callback',
 }, async (accessToken, refreshToken, profile, done) => {
   try {
-    let user = await User.findOne({ googleId: profile.id });
-    if (!user) {
-      user = await User.create({
-        googleId: profile.id,
-        email:    profile.emails[0].value,
-        name:     profile.displayName,
-        avatar:   profile.photos[0]?.value || ''
-      });
-      log.info(`New user created: id=${user._id} email=${user.email}`);
-    } else {
-      log.debug(`Existing user authenticated: id=${user._id} email=${user.email}`);
-    }
+    const email  = profile.emails?.[0]?.value;
+    const avatar = profile.photos?.[0]?.value || '';
+
+    // Upsert — always return the freshest DB copy so profileComplete is accurate
+    let user = await User.findOneAndUpdate(
+      { googleId: profile.id },
+      { $setOnInsert: { googleId: profile.id, email, name: profile.displayName, avatar } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    const isNew = !user.createdAt || (Date.now() - user.createdAt.getTime() < 5000);
+    if (isNew) log('info', 'New user created', { id: user._id, email });
+
     return done(null, user);
   } catch (err) {
-    log.error('Google OAuth strategy error:', err.message);
+    log('error', 'OAuth strategy error', { err: err.message });
     return done(err, null);
   }
 }));
 
-passport.serializeUser((user, done) => {
-  log.debug(`serializeUser id=${user._id}`);
-  done(null, user._id);
-});
+// Serialize/deserialize — always re-fetch from DB so the session reflects DB truth
+passport.serializeUser((user, done) => done(null, user._id.toString()));
 
 passport.deserializeUser(async (id, done) => {
   try {
-    const user = await User.findById(id);
-    if (!user) log.warn(`deserializeUser: no user found for id=${id}`);
-    done(null, user);
+    const user = await User.findById(id).lean();
+    done(null, user || false);
   } catch (err) {
-    log.error('deserializeUser error:', err.message);
     done(err, null);
   }
 });
 
-// ─── Routes ───────────────────────────────────────────────────────────────────
+// ── Route guards ──────────────────────────────────────────────────────────────
+function requireAuth(req, res, next) {
+  if (req.isAuthenticated()) return next();
+  if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Unauthorized' });
+  res.redirect('/');
+}
+
+function requireOnboarded(req, res, next) {
+  if (!req.isAuthenticated())      return res.redirect('/');
+  if (!req.user.profileComplete)   return res.redirect('/onboarding');
+  next();
+}
+
+// ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/auth',      require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 
+// Landing — redirect authenticated users based on onboarding state
 app.get('/', (req, res) => {
-  log.debug(`GET / — authenticated=${req.isAuthenticated()}`);
-  if (req.isAuthenticated()) return res.redirect('/app');
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  if (!req.isAuthenticated()) return res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  if (!req.user.profileComplete) return res.redirect('/onboarding');
+  return res.redirect('/app');
 });
 
-app.get('/onboarding', (req, res) => {
-  if (!req.isAuthenticated()) {
-    log.warn(`/onboarding unauthenticated access — ip=${req.ip}`);
-    return res.redirect('/');
-  }
+// Onboarding — must be logged in; if already complete, redirect to /app
+app.get('/onboarding', requireAuth, (req, res) => {
+  // Always show the page — users can revisit to edit profile
   res.sendFile(path.join(__dirname, 'public', 'onboarding.html'));
 });
 
-app.get('/app', (req, res) => {
-  if (!req.isAuthenticated()) {
-    log.warn(`/app unauthenticated access — ip=${req.ip}`);
-    return res.redirect('/');
-  }
+// App — must be logged in AND have completed onboarding
+app.get('/app', requireOnboarded, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'app.html'));
 });
 
-// ─── Favicon – return 204 silently to stop 1s+ 404 noise on every page load ───
-app.get('/favicon.ico', (req, res) => res.status(204).end());
+// ── Socket.IO ─────────────────────────────────────────────────────────────────
+// Share express sessions with socket.io
+const wrap = mw => (socket, next) => mw(socket.request, {}, next);
+io.use(wrap(sessionMiddleware));
+io.use(wrap(passport.initialize()));
+io.use(wrap(passport.session()));
 
-// ─── 404 ──────────────────────────────────────────────────────────────────────
-app.use((req, res) => {
-  log.warn(`404 — ${req.method} ${req.originalUrl} ip=${req.ip}`);
-  res.status(404).json({ error: 'Not found' });
+// Only allow authenticated sockets
+io.use((socket, next) => {
+  if (socket.request.user) return next();
+  next(new Error('Unauthorized'));
 });
 
-// ─── Global error handler ─────────────────────────────────────────────────────
-// eslint-disable-next-line no-unused-vars
-app.use((err, req, res, next) => {
-  const status = err.status || err.statusCode || 500;
-  log.error(`Unhandled error — ${req.method} ${req.originalUrl}`);
-  log.error(`  status  : ${status}`);
-  log.error(`  message : ${err.message}`);
-  if (process.env.NODE_ENV !== 'production') log.error(`  stack   :\n${err.stack}`);
-
-  fs.appendFile(
-    path.join(LOGS_DIR, 'error.log'),
-    `[${ts()}] ${req.method} ${req.originalUrl} | ${status} | ${err.message}\n${err.stack}\n\n`,
-    () => {}
-  );
-
-  res.status(status).json({
-    error: status < 500 ? err.message : 'Internal server error',
-    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
-  });
-});
-
-// ─── Socket.IO ────────────────────────────────────────────────────────────────
-const onlineUsers = new Map();
+const onlineUsers = new Map(); // socketId → userId string
 
 io.on('connection', (socket) => {
-  log.info(`Socket connected    id=${socket.id} ip=${socket.handshake.address}`);
+  const userId = socket.request.user?._id?.toString();
+  log('info', 'Socket connected', { id: socket.id, ip: socket.handshake.address });
 
-  socket.on('user:join', async (userId) => {
+  socket.on('user:join', async (uid) => {
+    // Trust the session user, not the client-supplied uid
+    const safeId = userId || uid;
+    onlineUsers.set(socket.id, safeId);
     try {
-      onlineUsers.set(socket.id, userId);
-      await User.findByIdAndUpdate(userId, { isOnline: true, lastSeen: new Date() });
-      io.emit('user:online', { userId });
-      log.info(`user:join  userId=${userId} socketId=${socket.id}`);
-    } catch (err) {
-      log.error(`user:join error — userId=${userId}: ${err.message}`);
-    }
+      await User.findByIdAndUpdate(safeId, { isOnline: true, lastSeen: new Date() });
+      io.emit('user:online', { userId: safeId });
+      log('info', 'user:join', { userId: safeId, socketId: socket.id });
+    } catch(e) { log('warn', 'user:join DB error', { err: e.message }); }
   });
 
-  socket.on('user:location', async ({ userId, lat, lng }) => {
+  socket.on('user:location', async ({ lat, lng }) => {
+    if (!userId) return;
+    const latN = parseFloat(lat), lngN = parseFloat(lng);
+    if (isNaN(latN) || isNaN(lngN)) return;
     try {
-      if (!userId || lat == null || lng == null) {
-        log.warn(`user:location bad payload — socketId=${socket.id}`, { userId, lat, lng });
-        return;
-      }
       await User.findByIdAndUpdate(userId, {
-        location: { type: 'Point', coordinates: [lng, lat] },
-        lastSeen: new Date(),
-        isOnline: true
+        location: { type:'Point', coordinates:[lngN, latN] },
+        lastSeen: new Date(), isOnline: true
       });
-      socket.broadcast.emit('user:moved', { userId, lat, lng });
-      log.debug(`user:location userId=${userId} lat=${lat} lng=${lng}`);
-    } catch (err) {
-      log.error(`user:location error — userId=${userId}: ${err.message}`);
-    }
+      socket.broadcast.emit('user:moved', { userId, lat: latN, lng: lngN });
+    } catch(e) { log('warn', 'user:location socket error', { err: e.message }); }
   });
 
   socket.on('disconnect', async (reason) => {
-    const userId = onlineUsers.get(socket.id);
-    log.info(`Socket disconnected id=${socket.id} reason=${reason}${userId ? ` userId=${userId}` : ''}`);
-    if (userId) {
+    const uid = onlineUsers.get(socket.id);
+    onlineUsers.delete(socket.id);
+    if (uid) {
       try {
-        onlineUsers.delete(socket.id);
-        await User.findByIdAndUpdate(userId, { isOnline: false, lastSeen: new Date() });
-        io.emit('user:offline', { userId });
-      } catch (err) {
-        log.error(`disconnect cleanup error — userId=${userId}: ${err.message}`);
-      }
+        await User.findByIdAndUpdate(uid, { isOnline: false, lastSeen: new Date() });
+        io.emit('user:offline', { userId: uid });
+      } catch(e) { /* ignore */ }
     }
-  });
-
-  socket.on('error', (err) => {
-    log.error(`Socket error — id=${socket.id}: ${err.message}`);
+    log('info', 'Socket disconnected', { id: socket.id, reason, userId: uid });
   });
 });
 
-// ─── Process safety nets ──────────────────────────────────────────────────────
-process.on('unhandledRejection', (reason) => {
-  log.error('Unhandled Promise Rejection:', reason);
-  fs.appendFile(
-    path.join(LOGS_DIR, 'error.log'),
-    `[${ts()}] UnhandledRejection: ${reason}\n\n`,
-    () => {}
-  );
-});
-
-process.on('uncaughtException', (err) => {
-  log.error('Uncaught Exception — shutting down:', err.message);
-  log.error(err.stack);
-  fs.appendFileSync(path.join(LOGS_DIR, 'error.log'), `[${ts()}] UncaughtException: ${err.stack}\n\n`);
-  process.exit(1);
-});
-
-process.on('SIGTERM', () => {
-  log.info('SIGTERM received — shutting down gracefully…');
+// ── Graceful shutdown ─────────────────────────────────────────────────────────
+function shutdown(signal) {
+  log('info', `${signal} received — shutting down gracefully…`);
   server.close(async () => {
-    log.info('HTTP server closed');
+    log('info', 'HTTP server closed');
     try {
-      await mongoose.connection.close(); // Mongoose 7+: returns Promise, no callback
-      log.info('MongoDB connection closed');
-    } catch (err) {
-      log.error('Error closing MongoDB connection:', err.message);
-    } finally {
-      process.exit(0);
-    }
+      await mongoose.connection.close();
+      log('info', 'MongoDB connection closed');
+    } catch(e) {}
+    process.exit(0);
   });
-});
+  // Force exit after 10s
+  setTimeout(() => process.exit(1), 10_000).unref();
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT',  () => shutdown('SIGINT'));
 
-// ─── Start ────────────────────────────────────────────────────────────────────
-const PORT = process.env.PORT || 3000;
+// ── Start ─────────────────────────────────────────────────────────────────────
+const PORT = parseInt(process.env.PORT || '3000', 10);
 server.listen(PORT, '0.0.0.0', () => {
-  log.info(`🚀 NearMe running on port ${PORT}`);
-  log.info(`   Logs dir       : ${LOGS_DIR}`);
-  log.info(`   Trust proxy    : ${app.get('trust proxy')}`);
-  log.info(`   Secure cookies : ${process.env.NODE_ENV === 'production'}`);
+  log('info', 'Starting NearMe server…');
+  log('info', `Node ${process.version} | ENV=${process.env.NODE_ENV} | LOG_LEVEL=${process.env.LOG_LEVEL||'info'}`);
+  log('info', `🚀 NearMe running on port ${PORT}`);
+  log('info', `   Trust proxy    : ${app.get('trust proxy')}`);
+  log('info', `   Secure cookies : ${process.env.NODE_ENV === 'production'}`);
 });
