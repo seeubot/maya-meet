@@ -61,7 +61,6 @@ app.use(helmet({
 
 app.use(cors({ origin: process.env.APP_URL || '*', credentials: true }));
 
-// Stricter rate limiting for API routes
 const globalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 400, standardHeaders: true, legacyHeaders: false });
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100, standardHeaders: true, legacyHeaders: false });
 
@@ -97,7 +96,6 @@ mongoose.connect(process.env.MONGODB_URI)
 mongoose.connection.on('disconnected', () => log('warn', '⚠️ MongoDB disconnected'));
 mongoose.connection.on('reconnected', () => log('info', '✅ MongoDB reconnected'));
 
-// Ensure indexes are created
 mongoose.connection.once('open', async () => {
   try {
     await User.init();
@@ -134,15 +132,17 @@ passport.use(new GoogleStrategy({
   try {
     const email = profile.emails?.[0]?.value;
     const avatar = profile.photos?.[0]?.value || '';
+    const name = profile.displayName;
 
+    // FIX: use $set for mutable fields (name, avatar) so they update on re-login.
+    // Only googleId and email are treated as immutable via $setOnInsert.
     let user = await User.findOneAndUpdate(
       { googleId: profile.id },
       {
+        $set: { name, avatar },
         $setOnInsert: {
           googleId: profile.id,
           email,
-          name: profile.displayName,
-          avatar
         }
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
@@ -184,7 +184,6 @@ function requireOnboarded(req, res, next) {
 app.use('/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 
-// Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
     status: 'healthy',
@@ -194,7 +193,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Landing page
 app.get('/', (req, res) => {
   if (!req.isAuthenticated()) return res.sendFile(path.join(__dirname, 'public', 'index.html'));
   if (!req.user.profileComplete) return res.redirect('/onboarding');
@@ -222,14 +220,26 @@ io.use((socket, next) => {
 
 const onlineUsers = new Map();
 
-io.on('connection', (socket) => {
+io.on('connection', async (socket) => {
   const userId = socket.request.user?._id?.toString();
   log('info', 'Socket connected', { id: socket.id, userId });
 
+  // FIX: mark online on connection itself — don't wait for user:join.
+  // Clients that never emit user:join would otherwise remain offline forever.
+  if (userId) {
+    onlineUsers.set(socket.id, userId);
+    try {
+      await User.findByIdAndUpdate(userId, { isOnline: true, lastSeen: new Date() });
+      io.emit('user:online', { userId });
+      log('debug', 'User came online on connect', { userId });
+    } catch (e) {
+      log('warn', 'connection presence DB error', { err: e.message });
+    }
+  }
+
+  // Keep user:join for backwards-compat / explicit re-join after tab resume
   socket.on('user:join', async () => {
     if (!userId) return;
-    
-    onlineUsers.set(socket.id, userId);
     try {
       await User.findByIdAndUpdate(userId, { isOnline: true, lastSeen: new Date() });
       io.emit('user:online', { userId });
@@ -241,10 +251,8 @@ io.on('connection', (socket) => {
 
   socket.on('user:location', async ({ lat, lng }) => {
     if (!userId) return;
-    
     const latN = parseFloat(lat), lngN = parseFloat(lng);
     if (isNaN(latN) || isNaN(lngN) || latN < -90 || latN > 90 || lngN < -180 || lngN > 180) return;
-    
     try {
       await User.findByIdAndUpdate(userId, {
         location: { type: 'Point', coordinates: [lngN, latN] },
@@ -260,7 +268,6 @@ io.on('connection', (socket) => {
   socket.on('disconnect', async () => {
     const uid = onlineUsers.get(socket.id);
     onlineUsers.delete(socket.id);
-    
     if (uid) {
       try {
         await User.findByIdAndUpdate(uid, { isOnline: false, lastSeen: new Date() });
