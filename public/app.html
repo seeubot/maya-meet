@@ -1,1277 +1,930 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NearMe — Around you</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet" />
-  <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <!-- Socket.IO -->
-  <script src="/socket.io/socket.io.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NearMe — map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #1a1a18;
+    --ink-soft: #5a5a55;
+    --ink-faint: #9a9a93;
+    --surface: #f7f6f2;
+    --white: #ffffff;
+    --accent: #2d5a3d;
+    --accent-light: #e8f0eb;
+    --accent-mid: #4a8c5f;
+    --border: rgba(26,26,24,0.12);
+    --danger: #c0392b;
+    --sidebar-w: 320px;
+    --nav-h: 56px;
+  }
 
-    :root {
-      --ink:    #0d0d0d;
-      --paper:  #f5f2eb;
-      --amber:  #e8a020;
-      --rust:   #c44b2b;
-      --sage:   #4a7c59;
-      --muted:  #7a7060;
-      --panel:  #f0ede5;
-      --border: rgba(13,13,13,0.12);
-      --shadow: 0 4px 24px rgba(13,13,13,0.10);
-    }
+  html, body { height: 100%; overflow: hidden; }
 
-    html, body {
-      height: 100%;
-      overflow: hidden;
-      background: var(--ink);
-      color: var(--ink);
-      font-family: 'DM Sans', sans-serif;
-      font-weight: 300;
-    }
+  body {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background: var(--surface);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+  }
 
-    /* ── Layout ── */
-    .layout {
-      display: grid;
-      grid-template-columns: 340px 1fr;
-      grid-template-rows: auto 1fr;
-      height: 100vh;
-    }
+  /* ── Nav ── */
+  nav {
+    height: var(--nav-h);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1rem 0 1.25rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--white);
+    flex-shrink: 0;
+    z-index: 500;
+    position: relative;
+  }
 
-    @media (max-width: 768px) {
-      .layout {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr auto;
-      }
-      .sidebar { display: none; }
-      .sidebar.mobile-open { display: flex; position: fixed; inset: 0; z-index: 200; }
-      .map-wrap { grid-row: 2; }
-      .mobile-bar { display: flex !important; }
-    }
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.3rem;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .logo span { color: var(--accent); }
 
-    /* ── Topbar ── */
-    .topbar {
-      grid-column: 1 / -1;
-      background: var(--paper);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 24px;
-      height: 56px;
-      z-index: 50;
-    }
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
 
-    .wordmark {
-      font-family: 'Syne', sans-serif;
-      font-weight: 800;
-      font-size: 0.9rem;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .wordmark .dot {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: var(--amber);
-      animation: pulse 2.4s ease-in-out infinite;
-    }
-    @keyframes pulse {
-      0%,100% { transform: scale(1); opacity: 1; }
-      50%      { transform: scale(1.5); opacity: 0.6; }
-    }
+  .nav-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: white;
+    cursor: pointer;
+    overflow: hidden;
+    border: 2px solid var(--accent-light);
+    transition: border-color 0.2s;
+  }
+  .nav-avatar:hover { border-color: var(--accent-mid); }
+  .nav-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
-    .topbar-right {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
+  .nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    background: transparent;
+    font-family: inherit;
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .nav-btn:hover { background: var(--surface); color: var(--ink); }
+  .nav-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.5; }
 
-    .online-badge {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      font-size: 0.78rem;
-      color: var(--muted);
-      font-family: 'Syne', sans-serif;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-    }
-    .online-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: var(--sage);
-      box-shadow: 0 0 0 3px rgba(74,124,89,0.2);
-    }
+  /* ── App shell ── */
+  .app-shell {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
 
-    .avatar-btn {
-      width: 34px; height: 34px;
-      border-radius: 50%;
-      overflow: hidden;
-      cursor: pointer;
-      border: 2px solid var(--border);
-      background: var(--ink);
-      transition: border-color 0.2s;
-      position: relative;
-    }
-    .avatar-btn:hover { border-color: var(--amber); }
-    .avatar-btn img { width: 100%; height: 100%; object-fit: cover; }
+  /* ── Sidebar ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    background: var(--white);
+    flex-shrink: 0;
+    overflow: hidden;
+  }
 
-    /* ── Sidebar ── */
+  @media (max-width: 680px) {
     .sidebar {
-      background: var(--paper);
-      border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    .sidebar-head {
-      padding: 20px 20px 16px;
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-    .sidebar-title {
-      font-family: 'Syne', sans-serif;
-      font-weight: 700;
-      font-size: 0.78rem;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 12px;
-    }
-
-    /* Radius control */
-    .radius-control {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .radius-control label {
-      font-size: 0.75rem;
-      color: var(--muted);
-      white-space: nowrap;
-      font-family: 'Syne', sans-serif;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-    }
-    input[type="range"] {
-      flex: 1;
-      accent-color: var(--amber);
-      height: 2px;
-      cursor: pointer;
-    }
-    .radius-val {
-      font-family: 'Syne', sans-serif;
-      font-weight: 700;
-      font-size: 0.82rem;
-      color: var(--ink);
-      min-width: 44px;
-      text-align: right;
-    }
-
-    /* User list */
-    .user-list {
-      flex: 1;
-      overflow-y: auto;
-      padding: 8px 0;
-    }
-    .user-list::-webkit-scrollbar { width: 4px; }
-    .user-list::-webkit-scrollbar-track { background: transparent; }
-    .user-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-    .user-item {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      padding: 12px 20px;
-      cursor: pointer;
-      transition: background 0.15s;
-      border-bottom: 1px solid var(--border);
-      animation: fadeSlide 0.35s ease both;
-    }
-    @keyframes fadeSlide {
-      from { opacity: 0; transform: translateX(-8px); }
-      to   { opacity: 1; transform: translateX(0); }
-    }
-    .user-item:hover { background: var(--panel); }
-    .user-item.active { background: var(--panel); border-left: 3px solid var(--amber); }
-
-    .ui-avatar {
-      width: 42px; height: 42px;
-      border-radius: 50%;
-      overflow: hidden;
-      flex-shrink: 0;
-      background: var(--ink);
-      position: relative;
-    }
-    .ui-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .ui-avatar .initials {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      font-family: 'Syne', sans-serif;
-      font-weight: 700;
-      font-size: 0.9rem;
-      color: var(--paper);
-    }
-    .ui-online-dot {
-      position: absolute;
-      bottom: 1px; right: 1px;
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      background: var(--sage);
-      border: 2px solid var(--paper);
-    }
-
-    .ui-body { flex: 1; min-width: 0; }
-    .ui-name {
-      font-family: 'Syne', sans-serif;
-      font-weight: 700;
-      font-size: 0.88rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .ui-bio {
-      font-size: 0.78rem;
-      color: var(--muted);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      margin-top: 2px;
-    }
-    .ui-dist {
-      font-family: 'Syne', sans-serif;
-      font-weight: 600;
-      font-size: 0.72rem;
-      color: var(--amber);
-      letter-spacing: 0.04em;
-      flex-shrink: 0;
-    }
-
-    .empty-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      flex: 1;
-      padding: 48px 24px;
-      color: var(--muted);
-      text-align: center;
-    }
-    .empty-icon { font-size: 2.5rem; opacity: 0.4; }
-    .empty-text { font-size: 0.85rem; line-height: 1.6; }
-
-    /* ── Map ── */
-    .map-wrap {
-      position: relative;
-      background: var(--ink);
-    }
-
-    #map {
-      width: 100%; height: 100%;
-    }
-
-    /* Custom leaflet tile layer styling */
-    .leaflet-container { background: #1a1814; }
-
-    /* ── Profile drawer ── */
-    .drawer-overlay {
-      position: fixed; inset: 0;
-      background: rgba(13,13,13,0.5);
-      z-index: 300;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.3s;
-    }
-    .drawer-overlay.open { opacity: 1; pointer-events: all; }
-
-    .drawer {
       position: fixed;
-      right: 0; top: 0; bottom: 0;
-      width: 340px;
-      background: var(--paper);
-      z-index: 301;
-      transform: translateX(100%);
-      transition: transform 0.35s cubic-bezier(0.77,0,0.175,1);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    .drawer.open { transform: translateX(0); }
-
-    .drawer-close {
-      position: absolute;
-      top: 16px; right: 16px;
-      width: 32px; height: 32px;
-      border: 1px solid var(--border);
-      background: transparent;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.1rem;
-      color: var(--muted);
-      transition: border-color 0.2s, color 0.2s;
-    }
-    .drawer-close:hover { border-color: var(--ink); color: var(--ink); }
-
-    .drawer-header {
-      padding: 40px 28px 24px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: flex-end;
-      gap: 20px;
-    }
-    .drawer-avatar {
-      width: 72px; height: 72px;
-      border-radius: 50%;
-      overflow: hidden;
-      flex-shrink: 0;
-      background: var(--ink);
-      position: relative;
-    }
-    .drawer-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .drawer-avatar .initials {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      font-family: 'Syne', sans-serif;
-      font-weight: 700;
-      font-size: 1.4rem;
-      color: var(--paper);
-    }
-
-    .drawer-meta { flex: 1; min-width: 0; }
-    .drawer-name {
-      font-family: 'Syne', sans-serif;
-      font-weight: 800;
-      font-size: 1.3rem;
-      letter-spacing: -0.02em;
-    }
-    .drawer-dist {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      margin-top: 6px;
-      font-size: 0.78rem;
-      font-family: 'Syne', sans-serif;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--amber);
-    }
-
-    .drawer-body { padding: 24px 28px; overflow-y: auto; flex: 1; }
-    .drawer-section { margin-bottom: 28px; }
-    .drawer-label {
-      font-family: 'Syne', sans-serif;
-      font-size: 0.68rem;
-      font-weight: 600;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 8px;
-    }
-    .drawer-bio {
-      font-size: 0.92rem;
-      line-height: 1.65;
-      color: var(--ink);
-    }
-
-    .drawer-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .drawer-chip {
-      font-family: 'Syne', sans-serif;
-      font-size: 0.72rem;
-      font-weight: 600;
-      letter-spacing: 0.05em;
-      border: 1px solid var(--border);
-      padding: 5px 12px;
-      color: var(--muted);
-    }
-
-    /* ── Me marker ── */
-    .me-marker {
-      width: 20px; height: 20px;
-      border-radius: 50%;
-      background: var(--amber);
-      border: 3px solid white;
-      box-shadow: 0 0 0 4px rgba(232,160,32,0.3);
-    }
-
-    /* ── Toast ── */
-    .toast {
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%) translateY(80px);
-      background: var(--ink);
-      color: var(--paper);
-      font-family: 'Syne', sans-serif;
-      font-size: 0.8rem;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      padding: 12px 24px;
-      z-index: 500;
-      transition: transform 0.3s cubic-bezier(0.77,0,0.175,1);
-      pointer-events: none;
-    }
-    .toast.visible { transform: translateX(-50%) translateY(0); }
-
-    /* ── Mobile bottom bar ── */
-    .mobile-bar {
-      display: none;
-      background: var(--paper);
-      border-top: 1px solid var(--border);
-      padding: 12px 24px;
-      gap: 16px;
-      align-items: center;
-      justify-content: space-between;
-      z-index: 50;
-    }
-    .mobile-bar-btn {
-      font-family: 'Syne', sans-serif;
-      font-size: 0.75rem;
-      font-weight: 600;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      padding: 10px 18px;
-      border: 1.5px solid var(--border);
-      background: transparent;
-      cursor: pointer;
-      color: var(--ink);
-    }
-    .mobile-bar-btn.primary {
-      background: var(--ink);
-      color: var(--paper);
-      border-color: var(--ink);
-    }
-
-    /* ── User menu dropdown ── */
-    .user-menu {
-      position: absolute;
-      top: 100%;
-      right: 0;
-      margin-top: 8px;
-      background: var(--paper);
-      border: 1px solid var(--border);
-      box-shadow: var(--shadow);
-      min-width: 180px;
-      display: none;
-      z-index: 100;
-    }
-    .user-menu.open { display: block; }
-    .user-menu-item {
-      display: block;
-      padding: 12px 18px;
-      font-size: 0.85rem;
-      color: var(--ink);
-      cursor: pointer;
-      border-bottom: 1px solid var(--border);
-      text-decoration: none;
-      transition: background 0.15s;
-    }
-    .user-menu-item:last-child { border-bottom: none; }
-    .user-menu-item:hover { background: var(--panel); }
-    .user-menu-item.danger { color: var(--rust); }
-
-    /* ── My Profile panel ── */
-    .profile-panel-overlay {
-      position: fixed; inset: 0;
-      background: rgba(13,13,13,0.45);
-      z-index: 300;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.3s;
-    }
-    .profile-panel-overlay.open { opacity: 1; pointer-events: all; }
-
-    .profile-panel {
-      position: fixed;
-      right: 0; top: 0; bottom: 0;
-      width: 380px;
-      background: var(--paper);
-      z-index: 301;
-      transform: translateX(100%);
-      transition: transform 0.35s cubic-bezier(0.77,0,0.175,1);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    .profile-panel.open { transform: translateX(0); }
-
-    @media (max-width: 480px) {
-      .profile-panel { width: 100%; }
-    }
-
-    .pp-header {
-      padding: 28px 28px 20px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-shrink: 0;
-    }
-    .pp-title {
-      font-family: 'Syne', sans-serif;
-      font-weight: 800;
-      font-size: 1.1rem;
-      letter-spacing: -0.01em;
-    }
-    .pp-close {
-      width: 32px; height: 32px;
-      border: 1px solid var(--border);
-      background: transparent;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1rem;
-      color: var(--muted);
-      transition: border-color 0.2s, color 0.2s;
-      flex-shrink: 0;
-    }
-    .pp-close:hover { border-color: var(--ink); color: var(--ink); }
-
-    .pp-body {
-      flex: 1;
-      overflow-y: auto;
-      padding: 24px 28px 32px;
-    }
-    .pp-body::-webkit-scrollbar { width: 4px; }
-    .pp-body::-webkit-scrollbar-thumb { background: var(--border); }
-
-    /* avatar row */
-    .pp-avatar-row {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      margin-bottom: 28px;
-      padding-bottom: 24px;
-      border-bottom: 1px solid var(--border);
-    }
-    .pp-avatar {
-      width: 64px; height: 64px;
-      border-radius: 50%;
-      overflow: hidden;
-      flex-shrink: 0;
-      background: var(--ink);
-    }
-    .pp-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .pp-avatar-info { flex: 1; min-width: 0; }
-    .pp-google-name {
-      font-family: 'Syne', sans-serif;
-      font-weight: 700;
-      font-size: 1rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .pp-email {
-      font-size: 0.78rem;
-      color: var(--muted);
-      margin-top: 3px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    /* form fields */
-    .pp-field { margin-bottom: 24px; }
-    .pp-label {
-      display: block;
-      font-family: 'Syne', sans-serif;
-      font-size: 0.68rem;
-      font-weight: 600;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 8px;
-    }
-    .pp-textarea {
+      bottom: 0; left: 0; right: 0;
       width: 100%;
-      background: transparent;
-      border: 1px solid var(--border);
-      border-bottom: 2px solid var(--ink);
-      color: var(--ink);
-      font-family: 'DM Sans', sans-serif;
-      font-size: 0.95rem;
-      font-weight: 300;
-      padding: 12px 14px;
-      outline: none;
-      resize: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
-      line-height: 1.6;
-    }
-    .pp-textarea:focus {
-      border-color: var(--amber);
-      box-shadow: 0 0 0 3px rgba(232,160,32,0.2);
-    }
-    .pp-char {
-      text-align: right;
-      font-size: 0.72rem;
-      color: var(--muted);
-      margin-top: 5px;
-    }
-    .pp-char.warn { color: var(--rust); }
-
-    /* interests grid */
-    .pp-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .pp-chip {
-      font-family: 'Syne', sans-serif;
-      font-size: 0.75rem;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      border: 1.5px solid var(--border);
-      padding: 6px 13px;
-      cursor: pointer;
-      background: transparent;
-      color: var(--muted);
-      transition: background 0.15s, color 0.15s, border-color 0.15s;
-      user-select: none;
-    }
-    .pp-chip:hover { border-color: var(--amber); color: var(--ink); }
-    .pp-chip.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-
-    /* save button */
-    .pp-footer {
-      padding: 16px 28px 24px;
+      height: 50vh;
+      border-right: none;
       border-top: 1px solid var(--border);
-      flex-shrink: 0;
-      display: flex;
-      gap: 12px;
-      align-items: center;
+      z-index: 400;
     }
-    .pp-save {
-      font-family: 'Syne', sans-serif;
-      font-size: 0.82rem;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      padding: 14px 28px;
-      background: var(--ink);
-      color: var(--paper);
-      border: 2px solid var(--ink);
-      cursor: pointer;
-      position: relative;
-      overflow: hidden;
-      transition: color 0.25s;
-      flex: 1;
-    }
-    .pp-save::after {
-      content: '';
-      position: absolute; inset: 0;
-      background: var(--amber);
-      transform: translateX(-100%);
-      transition: transform 0.3s cubic-bezier(0.77,0,0.175,1);
-      z-index: 0;
-    }
-    .pp-save:hover { color: var(--ink); }
-    .pp-save:hover::after { transform: translateX(0); }
-    .pp-save span { position: relative; z-index: 1; }
-    .pp-save:disabled { opacity: 0.4; cursor: not-allowed; }
-    .pp-save:disabled::after { display: none; }
-    .pp-save-status {
-      font-size: 0.78rem;
-      color: var(--sage);
-      font-family: 'Syne', sans-serif;
-      font-weight: 600;
-      min-width: 60px;
-      display: none;
-    }
-    .pp-save-status.visible { display: block; }
-    .pp-save-status.err { color: var(--rust); }
-  </style>
+  }
+
+  .sidebar-header {
+    padding: 1rem 1.25rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .sidebar-title {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
+
+  .nearby-count {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.4rem;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .nearby-count small {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: var(--ink-soft);
+  }
+
+  .radius-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 0.75rem;
+  }
+
+  .radius-control label { font-size: 0.78rem; color: var(--ink-soft); white-space: nowrap; }
+
+  input[type="range"] {
+    flex: 1;
+    height: 3px;
+    accent-color: var(--accent);
+  }
+
+  .radius-val { font-size: 0.78rem; font-weight: 500; color: var(--ink); min-width: 38px; text-align: right; }
+
+  /* ── User list ── */
+  .user-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem 0;
+  }
+
+  .user-list::-webkit-scrollbar { width: 4px; }
+  .user-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .user-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 0.75rem 1.25rem;
+    cursor: pointer;
+    transition: background 0.15s;
+    border-bottom: 1px solid var(--border);
+  }
+  .user-item:hover { background: var(--surface); }
+  .user-item.highlighted { background: var(--accent-light); }
+
+  .user-pin {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: white;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .user-pin img { width: 100%; height: 100%; object-fit: cover; }
+
+  .online-dot {
+    position: absolute;
+    bottom: 1px; right: 1px;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--accent-mid);
+    border: 1.5px solid white;
+  }
+
+  .user-info { flex: 1; min-width: 0; }
+
+  .user-name {
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--ink);
+  }
+
+  .user-bio {
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+  }
+
+  .user-tags {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 5px;
+  }
+
+  .tag {
+    font-size: 0.68rem;
+    padding: 2px 7px;
+    background: var(--surface);
+    color: var(--ink-soft);
+    border-radius: 100px;
+    border: 1px solid var(--border);
+  }
+
+  .tag.shared {
+    background: var(--accent-light);
+    color: var(--accent);
+    border-color: transparent;
+  }
+
+  .user-dist {
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding-top: 4px;
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 0.5rem;
+    color: var(--ink-faint);
+    font-size: 0.875rem;
+    padding: 2rem;
+    text-align: center;
+  }
+
+  .empty-state svg { width: 36px; height: 36px; stroke: var(--ink-faint); fill: none; stroke-width: 1.2; margin-bottom: 0.5rem; }
+
+  /* ── Map ── */
+  .map-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #map {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Leaflet overrides */
+  .leaflet-container { font-family: 'DM Sans', sans-serif; }
+  .leaflet-popup-content-wrapper {
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    border: 1px solid var(--border);
+  }
+  .leaflet-popup-content { margin: 12px 14px; }
+  .leaflet-popup-tip-container { display: none; }
+
+  /* custom pin */
+  .lf-pin {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+  }
+  .lf-bubble {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 3px solid white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    overflow: hidden;
+  }
+  .lf-bubble img { width: 100%; height: 100%; object-fit: cover; }
+  .lf-tail { width: 2px; height: 7px; background: rgba(0,0,0,0.25); }
+  .lf-dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(0,0,0,0.2); }
+  .lf-me { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(45,90,61,0.2); }
+
+  /* popup content */
+  .popup-name { font-weight: 500; font-size: 0.9rem; color: var(--ink); margin-bottom: 3px; }
+  .popup-bio { font-size: 0.78rem; color: var(--ink-soft); margin-bottom: 6px; }
+  .popup-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .popup-tag { font-size: 0.68rem; padding: 2px 7px; background: var(--surface); border-radius: 100px; color: var(--ink-soft); }
+  .popup-tag.shared { background: var(--accent-light); color: var(--accent); }
+
+  /* map controls */
+  .map-controls {
+    position: absolute;
+    top: 12px; right: 12px;
+    z-index: 450;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .map-ctrl-btn {
+    width: 36px; height: 36px;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .map-ctrl-btn:hover { background: var(--surface); }
+  .map-ctrl-btn svg { width: 16px; height: 16px; stroke: var(--ink-soft); fill: none; stroke-width: 1.5; }
+
+  /* location permission banner */
+  .loc-banner {
+    position: absolute;
+    bottom: 12px; left: 50%;
+    transform: translateX(-50%);
+    z-index: 450;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.75rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    white-space: nowrap;
+  }
+
+  .loc-banner button {
+    padding: 4px 12px;
+    background: var(--ink);
+    color: white;
+    border: none;
+    border-radius: 100px;
+    font-family: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+
+  /* Profile panel (slide-in) */
+  .profile-panel {
+    position: fixed;
+    top: var(--nav-h); right: 0; bottom: 0;
+    width: 300px;
+    background: var(--white);
+    border-left: 1px solid var(--border);
+    z-index: 600;
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .profile-panel.open { transform: translateX(0); }
+
+  .panel-close {
+    position: absolute;
+    top: 12px; right: 12px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--ink-soft);
+    font-size: 1.2rem;
+    line-height: 1;
+  }
+
+  .panel-header {
+    padding: 1.5rem 1.25rem 1rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .panel-avatar {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 500; font-size: 1rem;
+    color: white; overflow: hidden;
+    flex-shrink: 0;
+  }
+  .panel-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+  .panel-name { font-weight: 500; font-size: 1rem; color: var(--ink); }
+  .panel-status { font-size: 0.78rem; color: var(--ink-faint); margin-top: 2px; }
+
+  .panel-body { padding: 1rem 1.25rem; }
+  .panel-section { margin-bottom: 1.25rem; }
+  .panel-label { font-size: 0.72rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-faint); margin-bottom: 6px; }
+  .panel-bio { font-size: 0.875rem; color: var(--ink-soft); line-height: 1.6; }
+  .panel-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+
+  /* Logout panel */
+  .user-menu {
+    position: absolute;
+    top: calc(var(--nav-h) + 4px); right: 1rem;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px;
+    z-index: 700;
+    min-width: 160px;
+    display: none;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  }
+  .user-menu.open { display: block; }
+  .menu-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 8px 12px;
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-size: 0.875rem;
+    color: var(--ink-soft);
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .menu-item:hover { background: var(--surface); color: var(--ink); }
+  .menu-item.danger { color: var(--danger); }
+  .menu-item.danger:hover { background: #fef2f2; }
+</style>
 </head>
 <body>
 
-  <div class="layout">
-    <!-- ── Topbar ── -->
-    <header class="topbar">
-      <div class="wordmark">
-        <div class="dot"></div>
-        NearMe
-      </div>
-      <div class="topbar-right">
-        <div class="online-badge">
-          <div class="online-dot"></div>
-          <span id="nearbyCount">0 nearby</span>
-        </div>
-        <div style="position:relative">
-          <div class="avatar-btn" id="avatarBtn">
-            <img id="topAvatar" src="" alt="" />
-          </div>
-          <div class="user-menu" id="userMenu">
-            <span class="user-menu-item" style="font-family:'Syne',sans-serif;font-weight:700;font-size:0.78rem;letter-spacing:.06em;cursor:default;color:var(--muted)" id="menuName">—</span>
-            <span class="user-menu-item" id="editProfileBtn">My profile</span>
-            <span class="user-menu-item danger" id="logoutBtn">Sign out</span>
-          </div>
-        </div>
-      </div>
-    </header>
+<nav>
+  <a href="/" class="logo">Near<span>Me</span></a>
+  <div class="nav-right">
+    <button class="nav-btn" id="btn-locate">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+      Re-center
+    </button>
+    <div class="nav-avatar" id="nav-avatar" tabindex="0">?</div>
+  </div>
+</nav>
 
-    <!-- ── Sidebar ── -->
-    <aside class="sidebar" id="sidebar">
-      <div class="sidebar-head">
-        <div class="sidebar-title">People nearby</div>
-        <div class="radius-control">
-          <label for="radiusSlider">Radius</label>
-          <input type="range" id="radiusSlider" min="500" max="10000" step="500" value="3000" />
-          <span class="radius-val" id="radiusVal">3 km</span>
-        </div>
-      </div>
-      <div class="user-list" id="userList">
-        <div class="empty-state" id="emptyState">
-          <div class="empty-icon">📍</div>
-          <p class="empty-text">Waiting for your location…<br>Make sure location is enabled.</p>
-        </div>
-      </div>
-    </aside>
+<div class="user-menu" id="user-menu">
+  <button class="menu-item" onclick="location.href='/onboarding'">Edit profile</button>
+  <button class="menu-item danger" id="btn-logout">Sign out</button>
+</div>
 
-    <!-- ── Map ── -->
-    <div class="map-wrap">
-      <div id="map"></div>
+<div class="app-shell">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">People nearby</div>
+      <div class="nearby-count">
+        <span id="nearby-num">—</span>
+        <small id="nearby-unit">within 5 km</small>
+      </div>
+      <div class="radius-control">
+        <label for="radius-slider">Radius</label>
+        <input type="range" id="radius-slider" min="500" max="20000" step="500" value="5000"/>
+        <span class="radius-val" id="radius-label">5 km</span>
+      </div>
+    </div>
+    <div class="user-list" id="user-list">
+      <div class="empty-state" id="empty-state">
+        <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+        Finding people nearby…
+      </div>
+    </div>
+  </aside>
+
+  <!-- Map -->
+  <div class="map-wrap">
+    <div id="map"></div>
+
+    <div class="map-controls">
+      <button class="map-ctrl-btn" id="btn-zoom-in" title="Zoom in">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <button class="map-ctrl-btn" id="btn-zoom-out" title="Zoom out">
+        <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
     </div>
 
-    <!-- ── Mobile bottom bar ── -->
-    <div class="mobile-bar">
-      <button class="mobile-bar-btn" onclick="toggleSidebar()">People nearby</button>
-      <button class="mobile-bar-btn primary" onclick="centerMap()">Re-center</button>
+    <div class="loc-banner" id="loc-banner" style="display:none;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+      Share location to appear on the map
+      <button id="btn-grant-loc">Allow</button>
     </div>
   </div>
+</div>
 
-  <!-- ── Profile drawer ── -->
-  <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
-  <div class="drawer" id="drawer">
-    <button class="drawer-close" onclick="closeDrawer()" aria-label="Close">✕</button>
-    <div class="drawer-header">
-      <div class="drawer-avatar" id="drawerAvatar">
-        <div class="initials" id="drawerInitials"></div>
-      </div>
-      <div class="drawer-meta">
-        <div class="drawer-name" id="drawerName"></div>
-        <div class="drawer-dist" id="drawerDist"></div>
-      </div>
-    </div>
-    <div class="drawer-body">
-      <div class="drawer-section">
-        <div class="drawer-label">About</div>
-        <p class="drawer-bio" id="drawerBio">—</p>
-      </div>
-      <div class="drawer-section" id="drawerInterestsSection">
-        <div class="drawer-label">Interests</div>
-        <div class="drawer-chips" id="drawerChips"></div>
-      </div>
-    </div>
-  </div>
+<!-- Profile panel -->
+<div class="profile-panel" id="profile-panel">
+  <button class="panel-close" id="panel-close">✕</button>
+  <div class="panel-header" id="panel-header"></div>
+  <div class="panel-body" id="panel-body"></div>
+</div>
 
-  <!-- ── My Profile panel ── -->
-  <div class="profile-panel-overlay" id="ppOverlay" onclick="closeProfilePanel()"></div>
-  <div class="profile-panel" id="profilePanel">
-    <div class="pp-header">
-      <span class="pp-title">My Profile</span>
-      <button class="pp-close" onclick="closeProfilePanel()">✕</button>
-    </div>
-    <div class="pp-body">
-      <!-- Avatar + name row (read-only from Google) -->
-      <div class="pp-avatar-row">
-        <div class="pp-avatar"><img id="ppAvatar" src="" alt="" /></div>
-        <div class="pp-avatar-info">
-          <div class="pp-google-name" id="ppName"></div>
-          <div class="pp-email" id="ppEmail"></div>
-        </div>
-      </div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/socket.io/client-dist/socket.io.min.js"></script>
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let myUser = null;
+  let myCoords = null;
+  let nearbyUsers = [];
+  let radius = 5000;
+  let map, myMarker, myCircle;
+  const markers = new Map(); // userId → leaflet marker
+  const PIN_COLORS = ['#4a7c8c','#8c6a4a','#7a4a8c','#4a8c6a','#8c4a4a','#4a5a8c','#6a8c4a'];
 
-      <!-- Bio -->
-      <div class="pp-field">
-        <label class="pp-label" for="ppBio">About me <span style="font-weight:300;text-transform:none;letter-spacing:0;font-family:'DM Sans',sans-serif">(up to 300 chars)</span></label>
-        <textarea class="pp-textarea" id="ppBio" rows="4" maxlength="300" placeholder="Tell people around you who you are…"></textarea>
-        <div class="pp-char" id="ppBioChar">0 / 300</div>
-      </div>
+  function colorFor(id) {
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+    return PIN_COLORS[h % PIN_COLORS.length];
+  }
 
-      <!-- Interests -->
-      <div class="pp-field">
-        <label class="pp-label">Interests <span style="font-weight:300;text-transform:none;letter-spacing:0;font-family:'DM Sans',sans-serif">(up to 10)</span></label>
-        <div class="pp-chips" id="ppChips"></div>
-      </div>
-    </div>
-    <div class="pp-footer">
-      <button class="pp-save" id="ppSaveBtn" onclick="saveProfile()"><span>Save changes</span></button>
-      <span class="pp-save-status" id="ppStatus"></span>
-    </div>
-  </div>
+  function fmtDist(m) {
+    if (m < 1000) return `${Math.round(m)} m`;
+    return `${(m / 1000).toFixed(1)} km`;
+  }
 
-  <!-- ── Toast ── -->
-  <div class="toast" id="toast"></div>
+  function lastSeenLabel(u) {
+    if (u.isOnline) return 'Online now';
+    const d = Date.now() - new Date(u.lastSeen).getTime();
+    const min = Math.round(d / 60000);
+    if (min < 2) return 'Just now';
+    if (min < 60) return `${min} min ago`;
+    const hr = Math.round(min / 60);
+    if (hr < 24) return `${hr}h ago`;
+    return `${Math.round(hr / 24)}d ago`;
+  }
 
-  <script>
-    // ── State ────────────────────────────────────────────────────────────────
-    let myCoords = null;
-    let nearbyUsers = [];
-    let map, myMarker;
-    const userMarkers = new Map(); // userId → marker
-    let activeUserId = null;
-    let currentRadius = 3000;
-    let me = null; // current logged-in user
+  function sharedTags(u) {
+    if (!myUser?.interests?.length) return [];
+    return (u.interests || []).filter(t => myUser.interests.includes(t));
+  }
 
-    const ALL_INTERESTS = [
-      'Coffee', 'Music', 'Design', 'Tech', 'Reading', 'Startups',
-      'Art', 'Film', 'Photography', 'Travel', 'Food', 'Fitness',
-      'Gaming', 'Nature', 'Writing', 'Yoga', 'Dance', 'Sports',
-      'Coding', 'Fashion', 'Theatre', 'Science', 'Mindfulness', 'Languages'
-    ];
-
-    // ── Init ─────────────────────────────────────────────────────────────────
-    (async () => {
-      await loadMe();
-      buildProfileChips();
-      initMap();
-      initSocket();
-      startGeolocation();
-    })();
-
-    // ── Load current user ─────────────────────────────────────────────────────
-    async function loadMe() {
-      try {
-        const res = await fetch('/auth/me');
-        if (!res.ok) { window.location.href = '/'; return; }
-        me = await res.json();
-        document.getElementById('topAvatar').src = me.avatar || '';
-        document.getElementById('menuName').textContent = me.name || 'You';
-      } catch(e) {}
-    }
-
-    // ── Profile panel ─────────────────────────────────────────────────────────
-    const INTERESTS_LIST = ALL_INTERESTS;
-    let ppSelectedInterests = [];
-
-    function buildProfileChips() {
-      const grid = document.getElementById('ppChips');
-      INTERESTS_LIST.forEach(interest => {
-        const chip = document.createElement('button');
-        chip.className = 'pp-chip';
-        chip.textContent = interest;
-        chip.dataset.value = interest;
-        chip.addEventListener('click', () => {
-          const idx = ppSelectedInterests.indexOf(interest);
-          if (idx === -1) {
-            if (ppSelectedInterests.length >= 10) return;
-            ppSelectedInterests.push(interest);
-            chip.classList.add('on');
-          } else {
-            ppSelectedInterests.splice(idx, 1);
-            chip.classList.remove('on');
-          }
-        });
-        grid.appendChild(chip);
-      });
-    }
-
-    function openProfilePanel() {
-      if (!me) return;
-      // Populate fields from current me
-      document.getElementById('ppAvatar').src = me.avatar || '';
-      document.getElementById('ppName').textContent = me.name || '';
-      document.getElementById('ppEmail').textContent = me.email || '';
-
-      const bioEl = document.getElementById('ppBio');
-      bioEl.value = me.bio || '';
-      document.getElementById('ppBioChar').textContent = `${bioEl.value.length} / 300`;
-
-      // Reset interest chips to match me.interests
-      ppSelectedInterests = [...(me.interests || [])];
-      document.querySelectorAll('.pp-chip').forEach(chip => {
-        chip.classList.toggle('on', ppSelectedInterests.includes(chip.dataset.value));
-      });
-
-      // Clear status
-      const status = document.getElementById('ppStatus');
-      status.textContent = '';
-      status.className = 'pp-save-status';
-
-      document.getElementById('profilePanel').classList.add('open');
-      document.getElementById('ppOverlay').classList.add('open');
-    }
-
-    function closeProfilePanel() {
-      document.getElementById('profilePanel').classList.remove('open');
-      document.getElementById('ppOverlay').classList.remove('open');
-    }
-
-    let ppSaving = false;
-    async function saveProfile() {
-      if (ppSaving) return;
-      ppSaving = true;
-
-      const btn = document.getElementById('ppSaveBtn');
-      const status = document.getElementById('ppStatus');
-      btn.disabled = true;
-      status.className = 'pp-save-status';
-      status.textContent = '';
-
-      const bio = document.getElementById('ppBio').value.trim();
-
-      try {
-        const res = await fetch('/api/users/me', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bio, interests: ppSelectedInterests }),
-        });
-        if (!res.ok) throw new Error('Save failed');
-        me = await res.json();
-        status.textContent = 'Saved ✓';
-        status.className = 'pp-save-status visible';
-        setTimeout(() => status.classList.remove('visible'), 2500);
-      } catch(e) {
-        status.textContent = 'Error saving';
-        status.className = 'pp-save-status visible err';
-      } finally {
-        ppSaving = false;
-        btn.disabled = false;
-      }
-    }
-
-    // Bio char counter
-    document.getElementById('ppBio').addEventListener('input', () => {
-      const len = document.getElementById('ppBio').value.length;
-      const el = document.getElementById('ppBioChar');
-      el.textContent = `${len} / 300`;
-      el.classList.toggle('warn', len > 260);
+  // ── Map init ───────────────────────────────────────────────────────────────
+  function initMap(lat, lng) {
+    map = L.map('map', {
+      center: [lat, lng],
+      zoom: 14,
+      zoomControl: false,
+      attributionControl: true,
     });
 
-    // ── Map ───────────────────────────────────────────────────────────────────
-    function initMap() {
-      map = L.map('map', {
-        center: [20, 0],
-        zoom: 2,
-        zoomControl: false,
-        attributionControl: false,
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 19,
+    }).addTo(map);
+
+    // Radius circle
+    myCircle = L.circle([lat, lng], {
+      radius,
+      color: '#2d5a3d',
+      fillColor: '#2d5a3d',
+      fillOpacity: 0.04,
+      weight: 1.5,
+      dashArray: '6 4',
+    }).addTo(map);
+
+    // Me marker
+    myMarker = L.marker([lat, lng], { icon: makePinIcon(myUser, true) }).addTo(map);
+    myMarker.bindPopup('<div class="popup-name">You</div>');
+
+    document.getElementById('btn-zoom-in').onclick = () => map.zoomIn();
+    document.getElementById('btn-zoom-out').onclick = () => map.zoomOut();
+    document.getElementById('btn-locate').onclick = () => {
+      if (myCoords) map.setView([myCoords.lat, myCoords.lng], 14);
+    };
+  }
+
+  function makePinIcon(user, isMe = false) {
+    const color = isMe ? '#2d5a3d' : colorFor(user._id || 'x');
+    const initials = (user.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const imgHtml = user.avatar
+      ? `<img src="${user.avatar}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"/>`
+      : initials;
+
+    const html = `
+      <div class="lf-pin">
+        <div class="lf-bubble ${isMe ? 'lf-me' : ''}" style="background:${color};">${imgHtml}</div>
+        <div class="lf-tail"></div>
+        <div class="lf-dot"></div>
+      </div>`;
+
+    return L.divIcon({ html, className: '', iconSize: [40, 55], iconAnchor: [20, 55] });
+  }
+
+  function makePopupContent(u) {
+    const shared = sharedTags(u);
+    const tagsHtml = (u.interests || []).slice(0, 6).map(t =>
+      `<span class="popup-tag ${shared.includes(t) ? 'shared' : ''}">${t}</span>`
+    ).join('');
+    return `
+      <div class="popup-name">${u.name}</div>
+      ${u.bio ? `<div class="popup-bio">${u.bio.slice(0, 80)}${u.bio.length > 80 ? '…' : ''}</div>` : ''}
+      ${tagsHtml ? `<div class="popup-tags">${tagsHtml}</div>` : ''}
+    `;
+  }
+
+  function addOrUpdateMarker(u) {
+    if (markers.has(u._id)) {
+      const m = markers.get(u._id);
+      m.setIcon(makePinIcon(u));
+      m.setPopupContent(makePopupContent(u));
+    } else {
+      const m = L.marker(
+        [u.location.coordinates[1], u.location.coordinates[0]],
+        { icon: makePinIcon(u) }
+      ).addTo(map);
+      m.bindPopup(makePopupContent(u));
+      m.on('click', () => openPanel(u));
+      markers.set(u._id, m);
+    }
+  }
+
+  function removeMarker(userId) {
+    if (markers.has(userId)) {
+      map.removeLayer(markers.get(userId));
+      markers.delete(userId);
+    }
+  }
+
+  // ── Nearby list ────────────────────────────────────────────────────────────
+  function renderSidebar() {
+    const list = document.getElementById('user-list');
+    const empty = document.getElementById('empty-state');
+
+    list.querySelectorAll('.user-item').forEach(el => el.remove());
+
+    if (!nearbyUsers.length) {
+      empty.style.display = 'flex';
+      document.getElementById('nearby-num').textContent = '0';
+      return;
+    }
+
+    empty.style.display = 'none';
+    document.getElementById('nearby-num').textContent = nearbyUsers.length;
+    document.getElementById('nearby-unit').textContent = `within ${radius >= 1000 ? (radius/1000).toFixed(0)+'km' : radius+'m'}`;
+
+    nearbyUsers.forEach(u => {
+      const shared = sharedTags(u);
+      const topTags = (u.interests || []).slice(0, 4);
+      const tagsHtml = topTags.map(t =>
+        `<span class="tag ${shared.includes(t) ? 'shared' : ''}">${t}</span>`
+      ).join('');
+      const color = colorFor(u._id);
+      const initials = (u.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+      const avatarHtml = u.avatar
+        ? `<img src="${u.avatar}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"/>`
+        : initials;
+
+      // distance from my position
+      let distHtml = '';
+      if (myCoords && u.location?.coordinates) {
+        const [lng, lat] = u.location.coordinates;
+        const d = map.distance([myCoords.lat, myCoords.lng], [lat, lng]);
+        distHtml = `<div class="user-dist">${fmtDist(d)}</div>`;
+      }
+
+      const item = document.createElement('div');
+      item.className = 'user-item';
+      item.dataset.id = u._id;
+      item.innerHTML = `
+        <div class="user-pin" style="background:${color};">
+          ${avatarHtml}
+          ${u.isOnline ? '<div class="online-dot"></div>' : ''}
+        </div>
+        <div class="user-info">
+          <div class="user-name">${u.name}</div>
+          ${u.bio ? `<div class="user-bio">${u.bio}</div>` : `<div class="user-bio">${lastSeenLabel(u)}</div>`}
+          ${tagsHtml ? `<div class="user-tags">${tagsHtml}</div>` : ''}
+        </div>
+        ${distHtml}
+      `;
+      item.addEventListener('click', () => {
+        openPanel(u);
+        if (u.location?.coordinates) {
+          map.setView([u.location.coordinates[1], u.location.coordinates[0]], 15);
+          markers.get(u._id)?.openPopup();
+        }
+      });
+      list.appendChild(item);
+    });
+  }
+
+  // ── Profile panel ──────────────────────────────────────────────────────────
+  function openPanel(u) {
+    const shared = sharedTags(u);
+    const color = colorFor(u._id);
+    const initials = (u.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
+    const header = document.getElementById('panel-header');
+    const body = document.getElementById('panel-body');
+
+    header.innerHTML = `
+      <div class="panel-avatar" style="background:${color};">
+        ${u.avatar ? `<img src="${u.avatar}" alt=""/>` : initials}
+      </div>
+      <div>
+        <div class="panel-name">${u.name}</div>
+        <div class="panel-status">${lastSeenLabel(u)}</div>
+      </div>
+    `;
+
+    let bodyHtml = '';
+    if (u.bio) {
+      bodyHtml += `<div class="panel-section"><div class="panel-label">About</div><div class="panel-bio">${u.bio}</div></div>`;
+    }
+    if (u.interests?.length) {
+      const tagsHtml = u.interests.map(t =>
+        `<span class="tag ${shared.includes(t) ? 'shared' : ''}">${t}</span>`
+      ).join('');
+      bodyHtml += `<div class="panel-section"><div class="panel-label">Interests${shared.length ? ` · <span style="color:var(--accent)">${shared.length} shared</span>` : ''}</div><div class="panel-tags">${tagsHtml}</div></div>`;
+    }
+    if (!bodyHtml) {
+      bodyHtml = '<div class="panel-bio" style="color:var(--ink-faint);">No profile info yet.</div>';
+    }
+    body.innerHTML = bodyHtml;
+
+    document.getElementById('profile-panel').classList.add('open');
+  }
+
+  document.getElementById('panel-close').addEventListener('click', () => {
+    document.getElementById('profile-panel').classList.remove('open');
+  });
+
+  // ── Fetch nearby ───────────────────────────────────────────────────────────
+  async function fetchNearby() {
+    if (!myCoords) return;
+    try {
+      const res = await fetch(`/api/users/nearby?lat=${myCoords.lat}&lng=${myCoords.lng}&radius=${radius}&limit=50`);
+      if (!res.ok) return;
+      nearbyUsers = await res.json();
+
+      // update markers
+      const ids = new Set(nearbyUsers.map(u => u._id));
+      markers.forEach((_, id) => { if (!ids.has(id)) removeMarker(id); });
+      nearbyUsers.forEach(u => {
+        if (u.location?.coordinates) addOrUpdateMarker(u);
       });
 
-      // Dark tile layer
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_matter/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-      }).addTo(map);
+      renderSidebar();
+    } catch (e) { /* silent */ }
+  }
 
-      L.control.zoom({ position: 'bottomright' }).addTo(map);
-      L.control.attribution({ position: 'bottomleft', prefix: '© CartoDB' }).addTo(map);
-    }
+  // ── Radius slider ──────────────────────────────────────────────────────────
+  document.getElementById('radius-slider').addEventListener('input', e => {
+    radius = parseInt(e.target.value, 10);
+    const label = radius >= 1000 ? `${(radius/1000).toFixed(0)} km` : `${radius} m`;
+    document.getElementById('radius-label').textContent = label;
+    if (myCircle) myCircle.setRadius(radius);
+    fetchNearby();
+  });
 
-    function centerMap() {
-      if (myCoords) {
-        map.setView([myCoords.lat, myCoords.lng], 15, { animate: true });
-      }
-    }
-
-    // ── Geolocation ───────────────────────────────────────────────────────────
-    function startGeolocation() {
-      if (!navigator.geolocation) {
-        showToast('Geolocation not supported');
-        return;
-      }
-      navigator.geolocation.watchPosition(onPosition, onPositionError, {
-        enableHighAccuracy: true,
-        maximumAge: 10000,
-        timeout: 15000,
-      });
-    }
-
-    function onPosition(pos) {
+  // ── Geolocation ────────────────────────────────────────────────────────────
+  function startTracking() {
+    navigator.geolocation.watchPosition(pos => {
       const { latitude: lat, longitude: lng } = pos.coords;
-      const first = !myCoords;
       myCoords = { lat, lng };
 
-      // Update or place my marker
-      const meIcon = L.divIcon({ className: '', html: '<div class="me-marker"></div>', iconSize: [20,20], iconAnchor: [10,10] });
-      if (!myMarker) {
-        myMarker = L.marker([lat, lng], { icon: meIcon, zIndexOffset: 1000 }).addTo(map);
+      if (!map) {
+        initMap(lat, lng);
+        fetchNearby();
       } else {
-        myMarker.setLatLng([lat, lng]);
+        myMarker?.setLatLng([lat, lng]);
+        myCircle?.setLatLng([lat, lng]);
       }
 
-      if (first) {
-        map.setView([lat, lng], 15, { animate: true });
+      socket?.emit('user:location', { lat, lng });
+      document.getElementById('loc-banner').style.display = 'none';
+    }, () => {
+      document.getElementById('loc-banner').style.display = 'flex';
+      if (!map) initMap(17.385, 78.4867); // fallback: Hyderabad
+    }, { enableHighAccuracy: true, maximumAge: 10000 });
+  }
+
+  // ── Socket.IO ──────────────────────────────────────────────────────────────
+  let socket;
+
+  function initSocket() {
+    socket = io({ transports: ['websocket', 'polling'] });
+
+    socket.on('connect', () => {
+      socket.emit('user:join');
+      // flush pending location from onboarding
+      const pending = sessionStorage.getItem('pendingLocation');
+      if (pending) {
+        try {
+          const { lat, lng } = JSON.parse(pending);
+          socket.emit('user:location', { lat, lng });
+        } catch (e) {}
+        sessionStorage.removeItem('pendingLocation');
       }
+    });
 
-      // Emit to socket
-      if (window._socket && window._socket.connected) {
-        window._socket.emit('user:location', { lat, lng });
-      }
+    socket.on('user:online', ({ userId }) => {
+      const u = nearbyUsers.find(u => u._id === userId);
+      if (u) { u.isOnline = true; renderSidebar(); }
+    });
 
-      // Fetch nearby
-      fetchNearby();
-    }
+    socket.on('user:offline', ({ userId }) => {
+      const u = nearbyUsers.find(u => u._id === userId);
+      if (u) { u.isOnline = false; renderSidebar(); }
+    });
 
-    function onPositionError(err) {
-      showToast('Location unavailable — ' + err.message);
-    }
-
-    // ── Socket.IO ─────────────────────────────────────────────────────────────
-    function initSocket() {
-      const socket = io({ transports: ['websocket', 'polling'] });
-      window._socket = socket;
-
-      socket.on('connect', () => {
-        socket.emit('user:join');
-      });
-
-      socket.on('user:moved', ({ userId, lat, lng }) => {
-        // Update marker if user is in our list
-        const user = nearbyUsers.find(u => u._id === userId);
-        if (!user) return;
-        if (userMarkers.has(userId)) {
-          userMarkers.get(userId).setLatLng([lat, lng]);
-        }
-        user.location = { type: 'Point', coordinates: [lng, lat] };
-        renderList();
-      });
-
-      socket.on('user:online', ({ userId }) => {
-        const user = nearbyUsers.find(u => u._id === userId);
-        if (user) { user.isOnline = true; renderList(); }
-      });
-
-      socket.on('user:offline', ({ userId }) => {
-        const user = nearbyUsers.find(u => u._id === userId);
-        if (user) { user.isOnline = false; renderList(); }
-      });
-    }
-
-    // ── Fetch nearby ──────────────────────────────────────────────────────────
-    async function fetchNearby() {
-      if (!myCoords) return;
-      try {
-        const res = await fetch(`/api/users/nearby?lat=${myCoords.lat}&lng=${myCoords.lng}&radius=${currentRadius}&limit=50`);
-        if (!res.ok) return;
-        nearbyUsers = await res.json();
-        renderList();
-        renderMarkers();
-      } catch(e) {}
-    }
-
-    // ── Render sidebar list ───────────────────────────────────────────────────
-    function renderList() {
-      const list = document.getElementById('userList');
-      const empty = document.getElementById('emptyState');
-      document.getElementById('nearbyCount').textContent = `${nearbyUsers.length} nearby`;
-
-      if (nearbyUsers.length === 0) {
-        empty.style.display = 'flex';
-        // Clear all non-empty items
-        [...list.querySelectorAll('.user-item')].forEach(el => el.remove());
-        empty.querySelector('.empty-text').innerHTML = myCoords
-          ? 'No one nearby yet.<br>Be the first to explore!'
-          : 'Waiting for your location…<br>Make sure location is enabled.';
-        return;
-      }
-
-      empty.style.display = 'none';
-      list.innerHTML = '';
-
-      nearbyUsers.forEach((user, i) => {
-        const dist = myCoords ? haversine(myCoords.lat, myCoords.lng,
-          user.location?.coordinates[1], user.location?.coordinates[0]) : null;
-        const distStr = dist !== null ? formatDist(dist) : '';
-
-        const item = document.createElement('div');
-        item.className = 'user-item' + (user._id === activeUserId ? ' active' : '');
-        item.dataset.id = user._id;
-        item.style.animationDelay = (i * 40) + 'ms';
-        item.innerHTML = `
-          <div class="ui-avatar">
-            ${user.avatar ? `<img src="${esc(user.avatar)}" alt="" />` : `<div class="initials">${initials(user.name)}</div>`}
-            ${user.isOnline ? '<div class="ui-online-dot"></div>' : ''}
-          </div>
-          <div class="ui-body">
-            <div class="ui-name">${esc(user.name)}</div>
-            <div class="ui-bio">${esc(user.bio || '—')}</div>
-          </div>
-          <div class="ui-dist">${distStr}</div>
-        `;
-        item.addEventListener('click', () => openProfile(user));
-        list.appendChild(item);
-      });
-    }
-
-    // ── Render map markers ────────────────────────────────────────────────────
-    function renderMarkers() {
-      const activeIds = new Set(nearbyUsers.map(u => u._id));
-
-      // Remove stale markers
-      for (const [id, marker] of userMarkers) {
-        if (!activeIds.has(id)) {
-          map.removeLayer(marker);
-          userMarkers.delete(id);
-        }
-      }
-
-      // Add/update markers
-      nearbyUsers.forEach(user => {
-        const coords = user.location?.coordinates;
-        if (!coords) return;
-        const [lng, lat] = coords;
-
-        const html = `
-          <div style="
-            width:36px;height:36px;border-radius:50%;
-            background:var(--ink);border:2px solid var(--amber);
-            overflow:hidden;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)
-          ">
-            ${user.avatar
-              ? `<img src="${esc(user.avatar)}" style="width:100%;height:100%;object-fit:cover" />`
-              : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:700;font-size:.75rem;color:var(--paper)">${initials(user.name)}</div>`
-            }
-          </div>
-        `;
-        const icon = L.divIcon({ className: '', html, iconSize: [36,36], iconAnchor: [18,18] });
-
-        if (userMarkers.has(user._id)) {
-          userMarkers.get(user._id).setLatLng([lat, lng]).setIcon(icon);
-        } else {
-          const marker = L.marker([lat, lng], { icon })
-            .addTo(map)
-            .on('click', () => openProfile(user));
-          userMarkers.set(user._id, marker);
-        }
-      });
-    }
-
-    // ── Profile drawer ────────────────────────────────────────────────────────
-    function openProfile(user) {
-      activeUserId = user._id;
-
-      // Highlight in list
-      document.querySelectorAll('.user-item').forEach(el => {
-        el.classList.toggle('active', el.dataset.id === user._id);
-      });
-
-      // Populate drawer
-      document.getElementById('drawerName').textContent = user.name || '';
-      document.getElementById('drawerBio').textContent = user.bio || '—';
-      document.getElementById('drawerInitials').textContent = initials(user.name);
-
-      const avatarEl = document.getElementById('drawerAvatar');
-      const existing = avatarEl.querySelector('img');
-      if (existing) existing.remove();
-      if (user.avatar) {
-        const img = document.createElement('img');
-        img.src = user.avatar; img.alt = '';
-        avatarEl.appendChild(img);
-      }
-
-      const dist = myCoords && user.location?.coordinates
-        ? haversine(myCoords.lat, myCoords.lng, user.location.coordinates[1], user.location.coordinates[0])
-        : null;
-      document.getElementById('drawerDist').textContent = dist !== null ? `📍 ${formatDist(dist)} from you` : '';
-
-      const chips = document.getElementById('drawerChips');
-      const sec   = document.getElementById('drawerInterestsSection');
-      chips.innerHTML = '';
-      if (user.interests?.length) {
-        sec.style.display = 'block';
-        user.interests.forEach(i => {
-          const chip = document.createElement('span');
-          chip.className = 'drawer-chip';
-          chip.textContent = i;
-          chips.appendChild(chip);
-        });
+    socket.on('user:moved', ({ userId, lat, lng }) => {
+      const u = nearbyUsers.find(u => u._id === userId);
+      if (u) {
+        u.location = { type: 'Point', coordinates: [lng, lat] };
+        const m = markers.get(userId);
+        if (m) m.setLatLng([lat, lng]);
+        renderSidebar();
       } else {
-        sec.style.display = 'none';
+        // someone moved into range — re-fetch
+        fetchNearby();
       }
-
-      document.getElementById('drawer').classList.add('open');
-      document.getElementById('drawerOverlay').classList.add('open');
-
-      // Pan map to user
-      if (user.location?.coordinates) {
-        map.panTo([user.location.coordinates[1], user.location.coordinates[0]], { animate: true });
-      }
-    }
-
-    function closeDrawer() {
-      activeUserId = null;
-      document.getElementById('drawer').classList.remove('open');
-      document.getElementById('drawerOverlay').classList.remove('open');
-      document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
-    }
-
-    // ── Radius slider ─────────────────────────────────────────────────────────
-    const slider = document.getElementById('radiusSlider');
-    const radiusVal = document.getElementById('radiusVal');
-    slider.addEventListener('input', () => {
-      currentRadius = parseInt(slider.value);
-      radiusVal.textContent = currentRadius >= 1000 ? (currentRadius / 1000) + ' km' : currentRadius + ' m';
-      clearTimeout(slider._t);
-      slider._t = setTimeout(fetchNearby, 600);
     });
+  }
 
-    // ── User menu ─────────────────────────────────────────────────────────────
-    document.getElementById('avatarBtn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      document.getElementById('userMenu').classList.toggle('open');
-    });
-    document.addEventListener('click', () => {
-      document.getElementById('userMenu').classList.remove('open');
-    });
-    document.getElementById('editProfileBtn').addEventListener('click', () => {
-      document.getElementById('userMenu').classList.remove('open');
-      openProfilePanel();
-    });
-    document.getElementById('logoutBtn').addEventListener('click', async () => {
-      await fetch('/auth/logout', { method: 'POST' });
-      window.location.href = '/';
-    });
+  // ── User menu ──────────────────────────────────────────────────────────────
+  document.getElementById('nav-avatar').addEventListener('click', e => {
+    e.stopPropagation();
+    document.getElementById('user-menu').classList.toggle('open');
+  });
+  document.addEventListener('click', () => document.getElementById('user-menu').classList.remove('open'));
 
-    // ── Mobile sidebar toggle ─────────────────────────────────────────────────
-    function toggleSidebar() {
-      document.getElementById('sidebar').classList.toggle('mobile-open');
+  document.getElementById('btn-logout').addEventListener('click', async () => {
+    await fetch('/auth/logout', { method: 'POST' });
+    location.href = '/';
+  });
+
+  document.getElementById('btn-grant-loc').addEventListener('click', startTracking);
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  async function init() {
+    // Load own profile
+    const res = await fetch('/auth/me');
+    if (!res.ok) { location.href = '/'; return; }
+    myUser = await res.json();
+    if (!myUser.profileComplete) { location.href = '/onboarding'; return; }
+
+    // Set nav avatar
+    const av = document.getElementById('nav-avatar');
+    if (myUser.avatar) {
+      av.innerHTML = `<img src="${myUser.avatar}" alt=""/>`;
+    } else {
+      av.textContent = (myUser.name || '?').slice(0, 2).toUpperCase();
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-    function haversine(lat1, lng1, lat2, lng2) {
-      if (lat2 == null || lng2 == null) return null;
-      const R = 6371000;
-      const φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180;
-      const Δφ = (lat2 - lat1) * Math.PI / 180;
-      const Δλ = (lng2 - lng1) * Math.PI / 180;
-      const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    initSocket();
+
+    // Try location
+    if ('geolocation' in navigator) {
+      startTracking();
+    } else {
+      document.getElementById('loc-banner').style.display = 'flex';
+      initMap(17.385, 78.4867);
     }
 
-    function formatDist(m) {
-      if (m < 1000) return Math.round(m) + ' m';
-      return (m / 1000).toFixed(1) + ' km';
-    }
+    // Refresh nearby every 30s
+    setInterval(fetchNearby, 30000);
+  }
 
-    function initials(name) {
-      if (!name) return '?';
-      return name.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
-    }
-
-    function esc(str) {
-      if (!str) return '';
-      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    }
-
-    let toastTimer;
-    function showToast(msg) {
-      const el = document.getElementById('toast');
-      el.textContent = msg;
-      el.classList.add('visible');
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => el.classList.remove('visible'), 3000);
-    }
-  </script>
+  init();
+</script>
 </body>
 </html>
