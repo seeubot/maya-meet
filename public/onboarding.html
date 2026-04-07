@@ -446,7 +446,7 @@
 
       <div class="nav-buttons">
         <button class="btn btn-ghost" onclick="goToStep(2)">Back</button>
-        <button class="btn btn-primary" id="step3Btn" onclick="requestLocation()">
+        <button class="btn btn-primary" id="step3Btn" onclick="handleStep3Btn()">
           <span class="spinner"></span>
           <span id="step3BtnLabel">Allow location</span>
         </button>
@@ -550,16 +550,20 @@
     }
 
     // ── Location ─────────────────────────────────────────────────────────────
+    // Single handler — called by onclick on the button only (no duplicate listener)
+    async function handleStep3Btn() {
+      if (locationGranted) {
+        await saveAndFinish();
+        return;
+      }
+      await requestLocation();
+    }
+
     async function requestLocation() {
       const btn = document.getElementById('step3Btn');
       const dot = document.getElementById('locDot');
       const statusEl = document.getElementById('locStatus');
       const errEl = document.getElementById('step3Error');
-
-      if (locationGranted) {
-        await saveAndFinish();
-        return;
-      }
 
       btn.classList.add('loading');
       btn.disabled = true;
@@ -573,17 +577,19 @@
       }
 
       navigator.geolocation.getCurrentPosition(
-        async (pos) => {
+        (pos) => {
           locationGranted = true;
+          window._coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+
+          dot.classList.remove('denied');
           dot.classList.add('granted');
           statusEl.textContent = 'Location granted ✓';
-          document.getElementById('step3BtnLabel').textContent = 'Finish setup';
           errEl.classList.remove('visible');
+
           btn.classList.remove('loading');
           btn.disabled = false;
-
-          // Store coords for final save
-          window._coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          // Update label so user knows next click will finish
+          document.getElementById('step3BtnLabel').textContent = 'Finish setup';
         },
         (err) => {
           dot.classList.add('denied');
@@ -597,13 +603,20 @@
           errEl.classList.add('visible');
           btn.classList.remove('loading');
           btn.disabled = false;
-          document.getElementById('step3BtnLabel').textContent = 'Skip & continue';
+          // Allow skipping without location
+          document.getElementById('step3BtnLabel').textContent = 'Skip & finish';
+          locationGranted = false;
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     }
 
+    // Guard against double-submit
+    let saving = false;
     async function saveAndFinish() {
+      if (saving) return;
+      saving = true;
+
       const btn = document.getElementById('step3Btn');
       btn.classList.add('loading');
       btn.disabled = true;
@@ -612,16 +625,16 @@
       const bio  = bioInput.value.trim();
 
       try {
-        // Save profile
-        await fetch('/api/users/me', {
+        const res = await fetch('/api/users/me', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, bio, interests: selectedInterests }),
         });
 
-        // Redirect to app
+        if (!res.ok) throw new Error('Save failed');
         window.location.href = '/app';
       } catch(e) {
+        saving = false;
         const errEl = document.getElementById('step3Error');
         errEl.textContent = 'Something went wrong saving your profile. Please try again.';
         errEl.classList.add('visible');
@@ -629,11 +642,6 @@
         btn.disabled = false;
       }
     }
-
-    // Skip location — just save profile
-    document.getElementById('step3Btn').addEventListener('click', async () => {
-      if (locationGranted) await saveAndFinish();
-    });
   </script>
 </body>
 </html>
