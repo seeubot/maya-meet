@@ -13,13 +13,7 @@ router.get('/google', passport.authenticate('google', {
 router.get(
   '/google/callback',
   passport.authenticate('google', { failureRedirect: '/?error=oauth_failed' }),
-  (req, res) => {
-    // Redirect based on onboarding state
-    if (!req.user.profileComplete) {
-      return res.redirect('/onboarding');
-    }
-    res.redirect('/app');
-  }
+  (req, res) => res.redirect('/app')
 );
 
 // ── Logout ────────────────────────────────────────────────────────────────────
@@ -38,8 +32,8 @@ router.get('/me', (req, res) => {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
-  const { _id, name, email, avatar, profileComplete, isOnline, lastSeen } = req.user;
-  res.json({ _id, name, email, avatar, profileComplete, isOnline, lastSeen });
+  const { _id, name, email, avatar, bio, interests, isOnline, lastSeen } = req.user;
+  res.json({ _id, name, email, avatar, bio, interests, isOnline, lastSeen });
 });
 
 module.exports = router;
